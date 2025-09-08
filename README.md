@@ -1,5 +1,4 @@
-# Yanix-Launcher (PyQt6)
-
+# Yanix-Launcher 
 <img width="1280" height="1280" alt="9 Sem Título_20250905172924" src="https://github.com/user-attachments/assets/29fd87b1-5d22-4040-ad70-e024b0405046" />
 
 
