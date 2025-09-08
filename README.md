@@ -44,7 +44,7 @@ Before running Yanix-Launcher, make sure these are installed:
 > If your distro doesn’t provide the packages below, you can also install via `pip`:
 >
 > ```bash
-> python -m pip install PyQt6 PyQt6-WebEngine requests
+> python -m pip install PyQt6 PyQt6-WebEngine requests --break-system-packages
 > ```
 
 ---
