@@ -11,15 +11,17 @@ import sys
 import socket
 import json
 import tempfile
+import re
 
-from PyQt5.QtWebEngineWidgets import QWebEngineView
-from PyQt5.QtWidgets import (
+from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
+from PyQt6.QtWebEngineWidgets import QWebEngineView
+from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QPushButton, QFileDialog, QVBoxLayout,
     QWidget, QLabel, QMessageBox, QComboBox, QDialog, QHBoxLayout,
     QSplashScreen, QProgressDialog, QLineEdit, QCheckBox
 )
-from PyQt5.QtGui import QFont, QPalette, QLinearGradient, QColor, QBrush, QIcon, QPainter, QPixmap
-from PyQt5.QtCore import Qt, QUrl, QRect, QTimer, QCoreApplication, QObject, pyqtSignal, QThread
+from PyQt6.QtGui import QFont, QPalette, QLinearGradient, QColor, QBrush, QIcon, QPainter, QPixmap
+from PyQt6.QtCore import Qt, QUrl, QRect, QTimer, QCoreApplication, QObject, pyqtSignal, QThread
 
 try:
     from pypresence import Presence
@@ -28,12 +30,12 @@ except ImportError:
     presence_enabled = False
 
 CLIENT_ID = '1383809366460989490'
-USER_AGENT = 'YanixLauncher/1.0.2'
+USER_AGENT = 'YanixLauncher/1.0.3'
 
 YANIX_PATH = os.path.expanduser("~/.local/share/yanix-launcher")
-DATA_DOWNLOAD_URL = "https://nikoyandere.github.io/data.zip"
+DATA_DOWNLOAD_URL = "https://theofficialdt.github.io/data.zip"
 TEMP_ZIP_PATH = os.path.join(YANIX_PATH, "data.zip")
-LATEST_VERSION_URL = "https://gitea.com/YanixLauncher/Yanix-Launcher-Gitea/raw/branch/main/yanix-launcher.py"
+LATEST_VERSION_URL = "https://theofficialdt.github.io/latest.py"
 
 CONFIG_PATH = os.path.join(YANIX_PATH, "data/game_path.txt")
 LANG_PATH = os.path.join(YANIX_PATH, "data/multilang.txt")
@@ -62,8 +64,6 @@ LANGUAGES = {
         "extract_failed": "Failed to extract data.", "download_success": "Data downloaded and extracted successfully!",
         "wineprefix": "Manage Wineprefix", "wineprefix_selected": "Wineprefix path saved successfully.", "wineprefix_error": "Could not save Wineprefix path.",
         "select_theme": "Select Theme", "theme_changed": "Theme changed!", "load_custom_theme": "Load Custom Theme",
-        "delete_game": "Delete Game", "delete_game_confirm": "Are you sure you want to delete the game? This action cannot be undone.",
-        "game_deleted_success": "Game deleted successfully!", "game_not_found": "Game not found at the installed path.",
         "check_updates": "Check for Updates", "update_outdated": "Your launcher is outdated. The application will now be updated and restarted.",
         "update_developer": "You are running a developer build.", "update_uptodate": "Your launcher is up to date.",
         "update_error": "Could not check for updates.", "advanced_mode": "Advanced Mode", "advanced_enabled": "Advanced Mode is Enabled",
@@ -81,8 +81,13 @@ LANGUAGES = {
         "downloading_label": "Downloading: {downloaded} / {total} ({percentage}%)", "downloading_label_no_total": "Downloading: {downloaded}",
         "unexpected_error": "An unexpected error occurred: {e}", "extracting_label": "Extracting files...", "extraction_progress_window_title": "Extracting Game",
         "game_download_success": "Game downloaded and extracted successfully!", "game_delete_fail": "Failed to delete the game: {e}",
+        "redownload_game_confirm": "The game is already installed. Do you want to delete the existing files and download it again?",
         "winetricks_missing": "Winetricks is not installed. Please install it to use this feature.", "winetricks_launch_fail": "Failed to launch Winetricks: {e}",
-        "update_restart_prompt": "Update successful. The launcher will now restart.", "update_error_window_title": "Update Error", "update_fail": "Failed to apply update: {e}"
+        "update_restart_prompt": "Update successful. The launcher will now restart.", "update_error_window_title": "Update Error", "update_fail": "Failed to apply update: {e}",
+        "launch_command_label": "Custom Launch Command (%LC% = Game Command)",
+        "exe_not_found": "'{exe}' is not installed or not in your PATH.",
+        "wine_version_warning_title": "WINE Version Warning",
+        "wine_version_warning_body": "Your WINE version ({version}) is older than 8.0. Versions 7.22 and older may be unstable with Yandere Simulator. We recommend updating WINE for a better experience."
     },
     "es": {
         "welcome": "Bienvenido a Yanix Launcher", "loading": "Cargando", "play": "Jugar", "github": "GitHub", "settings": "Configuración",
@@ -93,8 +98,6 @@ LANGUAGES = {
         "extract_failed": "Fallo al extraer datos.", "download_success": "Datos descargados y extraídos exitosamente!",
         "wineprefix": "Administrar Wineprefix", "wineprefix_selected": "Ruta de Wineprefix guardada exitosamente.", "wineprefix_error": "No se pudo guardar la ruta de Wineprefix.",
         "select_theme": "Seleccionar Tema", "theme_changed": "¡Tema cambiado!", "load_custom_theme": "Cargar Tema Personalizado",
-        "delete_game": "Eliminar Juego", "delete_game_confirm": "¿Estás seguro de que quieres eliminar el juego? Esta acción no se puede deshacer.",
-        "game_deleted_success": "Juego eliminado exitosamente!", "game_not_found": "Juego no encontrado en la ruta instalada.",
         "check_updates": "Buscar actualizaciones", "update_outdated": "Tu lanzador está desactualizado. La aplicación se actualizará y se reiniciará ahora.",
         "update_developer": "Estás ejecutando una versión de desarrollador.", "update_uptodate": "Tu lanzador está actualizado.",
         "update_error": "No se pudieron buscar actualizaciones.", "advanced_mode": "Modo Avanzado", "advanced_enabled": "Modo Avanzado Activado",
@@ -112,8 +115,13 @@ LANGUAGES = {
         "downloading_label": "Descargando: {downloaded} / {total} ({percentage}%)", "downloading_label_no_total": "Descargando: {downloaded}",
         "unexpected_error": "Ocurrió un error inesperado: {e}", "extracting_label": "Extrayendo archivos...", "extraction_progress_window_title": "Extrayendo Juego",
         "game_download_success": "¡Juego descargado y extraído con éxito!", "game_delete_fail": "Error al eliminar el juego: {e}",
-        "winetricks_missing": "Winetricks no está instalado. Por favor, instálalo para usar esta función.", "winetricks_launch_fail": "Error al iniciar Winetricks: {e}",
-        "update_restart_prompt": "Actualización exitosa. El lanzador se reiniciará ahora.", "update_error_window_title": "Error de Actualización", "update_fail": "Error al aplicar la actualización: {e}"
+        "redownload_game_confirm": "El juego ya está instalado. ¿Quieres eliminar los archivos existentes y descargarlo de nuevo?",
+        "winetricks_missing": "Winetricks no está instalado. Por favor, instálalo para usar este recurso.", "winetricks_launch_fail": "Error al iniciar Winetricks: {e}",
+        "update_restart_prompt": "Actualización exitosa. El lanzador se reiniciará ahora.", "update_error_window_title": "Error de Actualización", "update_fail": "Error al aplicar la actualización: {e}",
+        "launch_command_label": "Comando de Lanzamiento Personalizado (%LC% = Comando del Juego)",
+        "exe_not_found": "'{exe}' no está instalado o no está en tu PATH.",
+        "wine_version_warning_title": "Advertencia de Versión de WINE",
+        "wine_version_warning_body": "Tu versión de WINE ({version}) es anterior a la 8.0. Las versiones 7.22 y anteriores pueden ser inestables con Yandere Simulator. Recomendamos actualizar WINE para una mejor experiencia."
     },
     "pt": {
         "welcome": "Bem-vindo ao Yanix Launcher", "loading": "Carregando", "play": "Jogar", "github": "GitHub", "settings": "Configurações",
@@ -124,8 +132,6 @@ LANGUAGES = {
         "extract_failed": "Falha ao extrair dados.", "download_success": "Dados baixados e extraídos com sucesso!",
         "wineprefix": "Gerenciar Wineprefix", "wineprefix_selected": "Caminho do Wineprefix salvo com sucesso!", "wineprefix_error": "Não foi possível salvar o caminho do Wineprefix.",
         "select_theme": "Selecionar Tema", "theme_changed": "Tema alterado!", "load_custom_theme": "Carregar Tema Personalizado",
-        "delete_game": "Excluir Jogo", "delete_game_confirm": "Tem certeza de que deseja excluir o jogo? Esta ação não pode ser desfeita.",
-        "game_deleted_success": "Jogo excluído com sucesso!", "game_not_found": "Jogo não encontrado no caminho de instalação.",
         "check_updates": "Verificar atualizações", "update_outdated": "Seu launcher está desatualizado. O aplicativo será atualizado e reiniciado agora.",
         "update_developer": "Você está executando uma versão de desenvolvedor.", "update_uptodate": "Seu launcher está atualizado.",
         "update_error": "Não foi possível verificar atualizações.", "advanced_mode": "Modo Avançado", "advanced_enabled": "Modo Avançado Habilitado",
@@ -143,8 +149,13 @@ LANGUAGES = {
         "downloading_label": "Baixando: {downloaded} / {total} ({percentage}%)", "downloading_label_no_total": "Baixando: {downloaded}",
         "unexpected_error": "Ocorreu um erro inesperado: {e}", "extracting_label": "Extraindo arquivos...", "extraction_progress_window_title": "Extraindo Jogo",
         "game_download_success": "Jogo baixado e extraído com sucesso!", "game_delete_fail": "Falha ao excluir o jogo: {e}",
+        "redownload_game_confirm": "O jogo já está instalado. Deseja excluir os arquivos existentes e baixá-lo novamente?",
         "winetricks_missing": "O Winetricks não está instalado. Por favor, instale-o para usar este recurso.", "winetricks_launch_fail": "Falha ao iniciar o Winetricks: {e}",
-        "update_restart_prompt": "Atualização bem-sucedida. O launcher será reiniciado agora.", "update_error_window_title": "Erro de Atualização", "update_fail": "Falha ao aplicar a atualização: {e}"
+        "update_restart_prompt": "Atualização bem-sucedida. O launcher será reiniciado agora.", "update_error_window_title": "Erro de Atualização", "update_fail": "Falha ao aplicar a atualização: {e}",
+        "launch_command_label": "Comando de Lançamento Personalizado (%LC% = Comando do Jogo)",
+        "exe_not_found": "'{exe}' não está instalado ou não está no seu PATH.",
+        "wine_version_warning_title": "Aviso de Versão do WINE",
+        "wine_version_warning_body": "Sua versão do WINE ({version}) é anterior à 8.0. Versões 7.22 e mais antigas podem ser instáveis com o Yandere Simulator. Recomendamos atualizar o WINE para uma melhor experiência."
     },
     "ru": {
         "welcome": "Добро пожаловать в Yanix Launcher", "loading": "Загрузка", "play": "Играть", "github": "GitHub", "settings": "Настройки",
@@ -155,8 +166,6 @@ LANGUAGES = {
         "extract_failed": "Не удалось извлечь данные.", "download_success": "Данные успешно загружены и извлечены!",
         "wineprefix": "Управление Wineprefix", "wineprefix_selected": "Путь Wineprefix успешно сохранен.", "wineprefix_error": "Не удалось сохранить путь Wineprefix.",
         "select_theme": "Выбрать тему", "theme_changed": "Тема изменена!", "load_custom_theme": "Загрузить пользовательскую тему",
-        "delete_game": "Удалить игру", "delete_game_confirm": "Вы уверены, что хотите удалить игру? Это действие необратимо.",
-        "game_deleted_success": "Игра успешно удалена!", "game_not_found": "Игра не найдена по установленному пути.",
         "check_updates": "Проверить обновления", "update_outdated": "Ваш лаунчер устарел. Приложение будет обновлено и перезапущено сейчас.",
         "update_developer": "Вы используете сборку для разработчиков.", "update_uptodate": "Ваш лаунчер обновлен.",
         "update_error": "Не удалось проверить обновления.", "advanced_mode": "Расширенный режим", "advanced_enabled": "Расширенный режим включен",
@@ -174,8 +183,13 @@ LANGUAGES = {
         "downloading_label": "Загрузка: {downloaded} / {total} ({percentage}%)", "downloading_label_no_total": "Загрузка: {downloaded}",
         "unexpected_error": "Произошла непредвиденная ошибка: {e}", "extracting_label": "Извлечение файлов...", "extraction_progress_window_title": "Извлечение игры",
         "game_download_success": "Игра успешно загружена и извлечена!", "game_delete_fail": "Не удалось удалить игру: {e}",
+        "redownload_game_confirm": "Игра уже установлена. Вы хотите удалить существующие файлы и скачать ее снова?",
         "winetricks_missing": "Winetricks не установлен. Пожалуйста, установите его, чтобы использовать эту функцию.", "winetricks_launch_fail": "Не удалось запустить Winetricks: {e}",
-        "update_restart_prompt": "Обновление успешно. Лаунчер сейчас перезапустится.", "update_error_window_title": "Ошибка обновления", "update_fail": "Не удалось применить обновление: {e}"
+        "update_restart_prompt": "Обновление успешно. Лаунчер сейчас перезапустится.", "update_error_window_title": "Ошибка обновления", "update_fail": "Не удалось применить обновление: {e}",
+        "launch_command_label": "Пользовательская команда запуска (%LC% = Команда игры)",
+        "exe_not_found": "'{exe}' не установлен или отсутствует в вашем PATH.",
+        "wine_version_warning_title": "Предупреждение о версии WINE",
+        "wine_version_warning_body": "Ваша версия WINE ({version}) старше 8.0. Версии 7.22 и старше могут быть нестабильны с Yandere Simulator. Мы рекомендуем обновить WINE для лучшего опыта."
     },
     "ja": {
         "welcome": "Yanix Launcherへようこそ", "loading": "読み込み中", "play": "プレイ", "github": "GitHub", "settings": "設定",
@@ -186,8 +200,6 @@ LANGUAGES = {
         "extract_failed": "データの抽出に失敗しました。", "download_success": "データが正常にダウンロードされ、抽出されました！",
         "wineprefix": "Wineprefixを管理", "wineprefix_selected": "Wineprefixパスが正常に保存されました。", "wineprefix_error": "Wineprefixパスを保存できませんでした。",
         "select_theme": "テーマを選択", "theme_changed": "テーマが変更されました！", "load_custom_theme": "カスタムテーマをロード",
-        "delete_game": "ゲームを削除", "delete_game_confirm": "ゲームを削除してもよろしいですか？この操作は元に戻せません。",
-        "game_deleted_success": "ゲームが正常に削除されました！", "game_not_found": "インストールパスにゲームが見つかりません。",
         "check_updates": "アップデートを確認", "update_outdated": "ランチャーが古くなっています。アプリケーションは更新され、再起動されます。",
         "update_developer": "開発者ビルドを実行しています。", "update_uptodate": "ランチャーは最新です。",
         "update_error": "アップデートを確認できませんでした。", "advanced_mode": "アドバンスモード", "advanced_enabled": "アドバンスモードが有効です",
@@ -205,8 +217,13 @@ LANGUAGES = {
         "downloading_label": "ダウンロード中: {downloaded} / {total} ({percentage}%)", "downloading_label_no_total": "ダウンロード中: {downloaded}",
         "unexpected_error": "予期しないエラーが発生しました: {e}", "extracting_label": "ファイルを展開中...", "extraction_progress_window_title": "ゲームを展開中",
         "game_download_success": "ゲームが正常にダウンロードされ、展開されました！", "game_delete_fail": "ゲームの削除に失敗しました: {e}",
+        "redownload_game_confirm": "ゲームはすでにインストールされています。既存のファイルを削除して、もう一度ダウンロードしますか？",
         "winetricks_missing": "Winetricksがインストールされていません。この機能を使用するにはインストールしてください。", "winetricks_launch_fail": "Winetricksの起動に失敗しました: {e}",
-        "update_restart_prompt": "アップデートが成功しました。ランチャーは再起動します。", "update_error_window_title": "アップデートエラー", "update_fail": "アップデートの適用に失敗しました: {e}"
+        "update_restart_prompt": "アップデートが成功しました。ランチャーは再起動します。", "update_error_window_title": "アップデートエラー", "update_fail": "アップデートの適用に失敗しました: {e}",
+        "launch_command_label": "カスタム起動コマンド (%LC% = ゲームコマンド)",
+        "exe_not_found": "'{exe}' がインストールされていないか、PATH にありません。",
+        "wine_version_warning_title": "WINEバージョンの警告",
+        "wine_version_warning_body": "お使いのWINEのバージョン({version})は8.0より古いです。バージョン7.22以前はYandere Simulatorで不安定になる可能性があります。より良い体験のためにWINEを更新することをお勧めします。"
     },
     "ko": {
         "welcome": "Yanix Launcher에 오신 것을 환영합니다", "loading": "로딩 중", "play": "플레이", "github": "GitHub", "settings": "설정",
@@ -217,8 +234,6 @@ LANGUAGES = {
         "extract_failed": "데이터 추출 실패.", "download_success": "데이터가 성공적으로 다운로드 및 추출되었습니다!",
         "wineprefix": "Wineprefix 관리", "wineprefix_selected": "Wineprefix 경로가 성공적으로 저장되었습니다.", "wineprefix_error": "Wineprefix 경로를 저장할 수 없습니다.",
         "select_theme": "테마 선택", "theme_changed": "테마가 변경되었습니다!", "load_custom_theme": "사용자 지정 테마 로드",
-        "delete_game": "게임 삭제", "delete_game_confirm": "게임을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
-        "game_deleted_success": "게임이 성공적으로 삭제되었습니다!", "game_not_found": "설치된 경로에서 게임을 찾을 수 없습니다.",
         "check_updates": "업데이트 확인", "update_outdated": "런처가 오래되었습니다. 애플리케이션이 업데이트되고 지금 다시 시작됩니다.",
         "update_developer": "개발자 빌드를 실행 중입니다.", "update_uptodate": "런처가 최신입니다.",
         "update_error": "업데이트를 확인할 수 없습니다.", "advanced_mode": "고급 모드", "advanced_enabled": "고급 모드가 활성화되었습니다",
@@ -236,8 +251,13 @@ LANGUAGES = {
         "downloading_label": "다운로드 중: {downloaded} / {total} ({percentage}%)", "downloading_label_no_total": "다운로드 중: {downloaded}",
         "unexpected_error": "예상치 못한 오류가 발생했습니다: {e}", "extracting_label": "파일 압축 해제 중...", "extraction_progress_window_title": "게임 압축 해제 중",
         "game_download_success": "게임이 성공적으로 다운로드 및 압축 해제되었습니다!", "game_delete_fail": "게임을 삭제하지 못했습니다: {e}",
+        "redownload_game_confirm": "게임이 이미 설치되어 있습니다. 기존 파일을 삭제하고 다시 다운로드하시겠습니까?",
         "winetricks_missing": "Winetricks가 설치되지 않았습니다. 이 기능을 사용하려면 설치하십시오.", "winetricks_launch_fail": "Winetricks를 시작하지 못했습니다: {e}",
-        "update_restart_prompt": "업데이트 성공. 런처가 지금 다시 시작됩니다.", "update_error_window_title": "업데이트 오류", "update_fail": "업데이트를 적용하지 못했습니다: {e}"
+        "update_restart_prompt": "업데이트 성공. 런처가 지금 다시 시작됩니다.", "update_error_window_title": "업데이트 오류", "update_fail": "업데이트를 적용하지 못했습니다: {e}",
+        "launch_command_label": "사용자 지정 실행 명령 (%LC% = 게임 명령)",
+        "exe_not_found": "'{exe}'이(가) 설치되지 않았거나 PATH에 없습니다.",
+        "wine_version_warning_title": "WINE 버전 경고",
+        "wine_version_warning_body": "WINE 버전({version})이 8.0보다 낮습니다. 7.22 및 이전 버전은 Yandere Simulator에서 불안정할 수 있습니다. 더 나은 경험을 위해 WINE을 업데이트하는 것이 좋습니다."
     },
     "ndk": {
         "welcome": "niko Niko-Launcher!", "loading": "You Activated the Nikodorito Easter-egg!", "play": "Niko", "github": "GitHub", "settings": "Meow",
@@ -248,11 +268,10 @@ LANGUAGES = {
         "download_success": "daka downloaded and extracted successfully!", "wineprefix": "manage the fucking wineprefix",
         "wineprefix_selected": "wineprefix path saved successfully, stupid.", "wineprefix_error": "could not save wineprefix path, stupid.",
         "select_theme": "niko select theme", "theme_changed": "niko theme changed!", "load_custom_theme": "load custom niko theme",
-        "delete_game": "delete game, stupid", "delete_game_confirm": "you sure you wanna delete the game, stupid? can't undo.",
-        "game_deleted_success": "game deleted, stupid!", "game_not_found": "game not found, stupid.", "check_updates": "check for updates, stupid",
+        "check_updates": "check for updates, stupid",
         "update_outdated": "your launcher is outdated, stupid. the application will be updated and restarted now.",
         "update_developer": "you are running a developer build, stupid.", "advanced_mode": "Niko Advanced Mode",
-        "advanced_enabled": "Advanced Mode is Niko Enabled", "advanced_disabled": "Advanced Mode is Niko Disabled", "apply": "Niko Apply",
+        "advanced_enabled": "Advanced Mode is Niko Enabled", "advanced_disabled": "Modo Avançado Desabilitado", "apply": "Niko Apply",
         "theme_error_title": "Theme Error, stupid", "theme_load_error": "Failed to load niko theme from {filepath}: {e}, stupid",
         "advanced_settings_applied": "Advanced niko settings applied. Some changes may require a restart, stupid.", "lang_ai_warning": "This language is niko.",
         "info_title": "Niko Info", "error_title": "Niko Error", "lang_save_error": "Could not save niko language settings: {e}, stupid",
@@ -265,8 +284,13 @@ LANGUAGES = {
         "download_progress_window_title": "Downloading Niko Game", "download_canceled": "Download canceled by you, stupid.", "downloading_label": "Downloading: {downloaded} / {total} ({percentage}%)",
         "downloading_label_no_total": "Downloading: {downloaded}", "unexpected_error": "An unexpected niko error occurred: {e}, stupid", "extracting_label": "Extracting niko files...",
         "extraction_progress_window_title": "Extracting Niko Game", "game_download_success": "Niko game downloaded and extracted successfully, stupid!", "game_delete_fail": "Failed to delete the niko game: {e}, stupid",
+        "redownload_game_confirm": "The niko game is already installed, stupid. Wanna delete the old files and download it again, stupid?",
         "winetricks_missing": "Winetricks is not installed. Please install it to use this niko feature, stupid.", "winetricks_launch_fail": "Failed to launch Winetricks: {e}, stupid",
-        "update_restart_prompt": "Update successful. The niko launcher will now restart, stupid.", "update_error_window_title": "Niko Update Error", "update_fail": "Failed to apply niko update: {e}, stupid", "update_uptodate": "Your launcher is up to date, stupid."
+        "update_restart_prompt": "Update successful. The niko launcher will now restart, stupid.", "update_error_window_title": "Niko Update Error", "update_fail": "Failed to apply niko update: {e}, stupid", "update_uptodate": "Your launcher is up to date, stupid.",
+        "launch_command_label": "Niko Launch Command (%LC% = Game Command), stupid",
+        "exe_not_found": "'{exe}' is not installed or not in your PATH, stupid.",
+        "wine_version_warning_title": "WINE Version Warning, stupid",
+        "wine_version_warning_body": "Your WINE version ({version}) is older than 8.0, stupid. Versions 7.22 and older may be unstable with Yandere Simulator. Update WINE for a better experience, stupid."
     }
 }
 
@@ -320,9 +344,9 @@ THEMES = {
 
 def load_advanced_config():
     defaults = {
-        "QT6FRAMEWORK": False,
         "BLOGLINK": "https://yanix-launcher.blogspot.com",
-        "DISCORD_RPC": True
+        "DISCORD_RPC": True,
+        "LAUNCH_COMMAND": ""
     }
     if not os.path.exists(ADVANCED_CONFIG_PATH):
         return defaults
@@ -410,7 +434,7 @@ class YanixSplashScreen(QSplashScreen):
         super().__init__()
         self.current_lang = current_lang_data
         self.setFixedSize(600, 300)
-        self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
+        self.setWindowFlags(Qt.WindowType.WindowStaysOnTopHint | Qt.WindowType.FramelessWindowHint)
         self.message = ""
         self.progress_text = ""
 
@@ -430,22 +454,22 @@ class YanixSplashScreen(QSplashScreen):
 
         text_rect = QRect(rect.width() // 2 - 200, rect.height() // 2 - 50, 400, 100)
 
-        font_title = QFont("Futura", 32, QFont.Bold)
+        font_title = QFont("Futura", 32, QFont.Weight.Bold)
         painter.setFont(font_title)
         painter.setPen(QColor(255, 255, 255))
-        painter.drawText(text_rect, Qt.AlignCenter, "Yanix Launcher")
+        painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, "Yanix Launcher")
 
         font_message = QFont("Futura", 16)
         painter.setFont(font_message)
         painter.setPen(QColor(0, 0, 0))
         message_rect = QRect(rect.width() // 2 - 200, rect.height() // 2 + 10, 400, 50)
-        painter.drawText(message_rect, Qt.AlignCenter, self.message)
+        painter.drawText(message_rect, Qt.AlignmentFlag.AlignCenter, self.message)
 
         font_progress = QFont("Futura", 12)
         painter.setFont(font_progress)
         painter.setPen(QColor(0, 0, 0))
         progress_rect = QRect(rect.width() - 150, rect.height() - 50, 100, 30)
-        painter.drawText(progress_rect, Qt.AlignRight | Qt.AlignBottom, self.progress_text)
+        painter.drawText(progress_rect, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom, self.progress_text)
 
     def update_splash_content(self, message, progress=""):
         self.message = message
@@ -523,6 +547,17 @@ class DataDownloader(QObject):
                     zip_ref.extract(file, target_data_folder)
                     extracted_count += 1
                     self.signals.extraction_progress.emit(extracted_count, total_files)
+
+            extracted_items = os.listdir(target_data_folder)
+            if len(extracted_items) == 1:
+                potential_subfolder = os.path.join(target_data_folder, extracted_items[0])
+                if os.path.isdir(potential_subfolder):
+                    source_dir = potential_subfolder
+                    for item_name in list(os.listdir(source_dir)):
+                        source_item_path = os.path.join(source_dir, item_name)
+                        destination_item_path = os.path.join(target_data_folder, item_name)
+                        shutil.move(source_item_path, destination_item_path)
+                    os.rmdir(source_dir)
 
             self.signals.extraction_complete.emit()
 
@@ -603,7 +638,7 @@ class UpdateChecker(QObject):
 
 
 class SettingsDialog(QDialog):
-    def __init__(self, lang_code, theme_name, lang_data, advanced_config, parent=None):
+    def __init__(self, lang_code, theme_name, lang_data, advanced_config, is_advanced, parent=None):
         super().__init__(parent)
         self.setWindowTitle(lang_data["settings"])
         self.setFixedSize(400, 250)
@@ -631,9 +666,9 @@ class SettingsDialog(QDialog):
         self.load_custom_theme_button.clicked.connect(self.load_custom_theme_file)
         layout.addWidget(self.load_custom_theme_button)
 
-        if os.path.exists(ADVANCED_FLAG_PATH):
-            self.setup_advanced_settings(layout)
-            self.setFixedSize(400, 450)
+        if is_advanced:
+            self.setup_advanced_settings(layout, lang_data)
+            self.setFixedSize(400, 600)
 
         self.apply_btn = QPushButton(lang_data["apply"])
         self.apply_btn.clicked.connect(self.apply_settings)
@@ -642,14 +677,10 @@ class SettingsDialog(QDialog):
         self.setLayout(layout)
         self.apply_theme_to_settings_buttons()
 
-    def setup_advanced_settings(self, layout):
+    def setup_advanced_settings(self, layout, lang_data):
         adv_label = QLabel("Advanced Settings")
         adv_label.setStyleSheet("font-weight: bold; margin-top: 10px;")
         layout.addWidget(adv_label)
-
-        self.qt6_checkbox = QCheckBox("Enable PyQt6 Framework (Requires Restart)")
-        self.qt6_checkbox.setChecked(self.advanced_config.get("QT6FRAMEWORK", False))
-        layout.addWidget(self.qt6_checkbox)
 
         blog_link_label = QLabel("Blog Link URL")
         layout.addWidget(blog_link_label)
@@ -661,13 +692,27 @@ class SettingsDialog(QDialog):
         self.discord_rpc_checkbox.setChecked(self.advanced_config.get("DISCORD_RPC", True))
         layout.addWidget(self.discord_rpc_checkbox)
 
+        self.launch_command_label = QLabel(lang_data.get("launch_command_label", "Custom Launch Command (%LC% = Game Command)"))
+        layout.addWidget(self.launch_command_label)
+        self.launch_command_edit = QLineEdit()
+        self.launch_command_edit.setText(self.advanced_config.get("LAUNCH_COMMAND", ""))
+        layout.addWidget(self.launch_command_edit)
+
+        self.select_exe_button = QPushButton(self.parent().lang["select_exe"])
+        self.select_exe_button.clicked.connect(self.parent().select_exe)
+        layout.addWidget(self.select_exe_button)
+
+        self.wineprefix_button = QPushButton(self.parent().lang["wineprefix"])
+        self.wineprefix_button.clicked.connect(self.parent().select_wineprefix)
+        layout.addWidget(self.wineprefix_button)
+
     def apply_theme_to_settings_buttons(self):
         theme = self.parent().get_current_theme_data()
         button_style = f"""
             QPushButton {{
                 color: {theme["button_text_color"]};
                 background-color: {theme["button_bg_color"]};
-                padding: 8px;
+                padding: 12px;
                 border-radius: 6px;
                 border: 1px solid {theme["border_color"]};
             }}
@@ -677,6 +722,10 @@ class SettingsDialog(QDialog):
         """
         self.apply_btn.setStyleSheet(button_style)
         self.load_custom_theme_button.setStyleSheet(button_style)
+        if hasattr(self, 'select_exe_button'):
+            self.select_exe_button.setStyleSheet(button_style)
+        if hasattr(self, 'wineprefix_button'):
+            self.wineprefix_button.setStyleSheet(button_style)
 
     def update_theme_selector_items(self):
         self.theme_selector.clear()
@@ -707,11 +756,11 @@ class SettingsDialog(QDialog):
         new_lang = self.lang_selector.currentText()
         advanced_message = ""
 
-        if hasattr(self, 'qt6_checkbox'):
+        if hasattr(self, 'blog_link_edit'):
             new_advanced_config = {
-                "QT6FRAMEWORK": self.qt6_checkbox.isChecked(),
                 "BLOGLINK": self.blog_link_edit.text(),
-                "DISCORD_RPC": self.discord_rpc_checkbox.isChecked()
+                "DISCORD_RPC": self.discord_rpc_checkbox.isChecked(),
+                "LAUNCH_COMMAND": self.launch_command_edit.text()
             }
             save_advanced_config(new_advanced_config)
             advanced_message = f'\n\n{self.parent().lang["advanced_settings_applied"]}'
@@ -828,6 +877,7 @@ class YanixLauncher(QMainWindow):
 
     def __init__(self):
         super().__init__()
+        self.is_advanced_mode_active = os.path.exists(ADVANCED_FLAG_PATH)
         self.advanced_config = load_advanced_config()
         self.lang_code = get_language()
         self.current_theme_name = get_theme()
@@ -852,9 +902,10 @@ class YanixLauncher(QMainWindow):
         self.game_finished.connect(self._on_game_finished)
         self.update_checker_signals.update_status.connect(self._on_update_check_result)
         self.update_checker_signals.update_found.connect(self._on_update_found)
+        self.check_and_warn_wine_version()
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_F6 and event.modifiers() == Qt.ShiftModifier:
+        if event.key() == Qt.Key.Key_F6 and event.modifiers() == Qt.KeyboardModifier.ShiftModifier:
             if not os.path.exists(ADVANCED_FLAG_PATH):
                 with open(ADVANCED_FLAG_PATH, "w") as f:
                     f.write("enabled")
@@ -887,6 +938,27 @@ class YanixLauncher(QMainWindow):
         except Exception:
             self.rpc.close()
             self.rpc = None
+    
+    def check_and_warn_wine_version(self):
+        try:
+            if not shutil.which("wine"):
+                return
+
+            result = subprocess.run(['wine', '--version'], capture_output=True, text=True, check=True)
+            output = result.stdout.strip()
+            
+            match = re.search(r'([0-9]+)\.([0-9]+)', output)
+
+            if match:
+                major = int(match.group(1))
+                if major < 8:
+                    detected_version = f"{major}.{match.group(2)}"
+                    title = self.lang.get("wine_version_warning_title", "WINE Version Warning")
+                    body = self.lang.get("wine_version_warning_body", "Your WINE version ({version}) is older than 8.0...").format(version=detected_version)
+                    QMessageBox.warning(self, title, body)
+
+        except (FileNotFoundError, subprocess.CalledProcessError, IndexError, ValueError):
+            pass
 
     def get_current_theme_data(self):
         if self.current_theme_name.endswith(".yltheme") and os.path.exists(self.current_theme_name):
@@ -903,7 +975,7 @@ class YanixLauncher(QMainWindow):
             QPushButton {{
                 color: {theme["button_text_color"]};
                 background-color: {theme["button_bg_color"]};
-                padding: 8px;
+                padding: 15px;
                 border-radius: 6px;
                 border: 1px solid {theme["border_color"]};
             }}
@@ -911,9 +983,9 @@ class YanixLauncher(QMainWindow):
                 background-color: {theme["button_hover_bg_color"]};
             }}
         """
-        for button in [self.play_button, self.settings_button, self.select_exe_button,
-                       self.download_button, self.winetricks_button, self.wineprefix_button,
-                       self.delete_game_button, self.check_updates_button,
+        for button in [self.play_button, self.settings_button,
+                       self.download_button, self.winetricks_button,
+                       self.check_updates_button,
                        self.support_button, self.discord_button]:
             button.setStyleSheet(button_style)
 
@@ -931,7 +1003,7 @@ class YanixLauncher(QMainWindow):
         gradient = QLinearGradient(0, 0, 0, self.height())
         gradient.setColorAt(0, QColor(theme["background_color_start"]))
         gradient.setColorAt(1, QColor(theme["background_color_end"]))
-        palette.setBrush(QPalette.Window, QBrush(gradient))
+        palette.setBrush(QPalette.ColorRole.Window, QBrush(gradient))
         self.setPalette(palette)
 
     def _on_game_finished(self):
@@ -943,51 +1015,75 @@ class YanixLauncher(QMainWindow):
         self.game_finished.emit()
 
     def launch_game(self):
-        game_to_launch = None
+        wine_path_exe = None
         game_dir = None
-        wine_needed = True
 
         if os.path.exists(CONFIG_PATH):
             with open(CONFIG_PATH) as f:
-                wine_path = f.read().strip()
-            if os.path.exists(wine_path):
-                game_to_launch = ["wine", wine_path]
-                game_dir = os.path.dirname(wine_path)
-            else:
+                wine_path_exe = f.read().strip()
+            if not os.path.exists(wine_path_exe):
                 QMessageBox.critical(self, self.lang["error_title"], self.lang["game_path_invalid"])
                 return
         elif os.path.exists(YAN_SIM_NATIVE_EXE_PATH):
-            game_to_launch = ["wine", YAN_SIM_NATIVE_EXE_PATH]
-            game_dir = YAN_SIM_INSTALL_PATH
+            wine_path_exe = YAN_SIM_NATIVE_EXE_PATH
         else:
             QMessageBox.critical(self, self.lang["error_title"], self.lang["game_path_undefined"])
             return
 
-        if game_to_launch:
-            try:
-                env = os.environ.copy()
-                if wine_needed and self.wineprefix:
-                    env["WINEPREFIX"] = self.wineprefix
+        base_game_command = ["wine", wine_path_exe]
+        game_dir = os.path.dirname(wine_path_exe)
 
-                self.hide()
-                process = subprocess.Popen(game_to_launch, cwd=game_dir, env=env)
+        custom_command_str = self.advanced_config.get("LAUNCH_COMMAND", "").strip()
+        final_command = []
 
-                self.update_rpc(details="Playing Yandere Simulator", state="In-Game")
-                monitor_thread = threading.Thread(
-                    target=self._wait_for_game_exit,
-                    args=(process,),
-                    daemon=True
-                )
-                monitor_thread.start()
+        if custom_command_str:
+            if "%LC%" in custom_command_str:
+                parts = custom_command_str.split()
+                for part in parts:
+                    if part == "%LC%":
+                        final_command.extend(base_game_command)
+                    else:
+                        final_command.append(part)
+            else:
+                final_command = custom_command_str.split()
+        else:
+            final_command = base_game_command
 
-            except FileNotFoundError:
-                QMessageBox.critical(self, self.lang["error_title"], self.lang["wine_missing"])
+        if not final_command:
+            QMessageBox.critical(self, self.lang["error_title"], self.lang["game_path_undefined"])
+            return
+
+        try:
+            env = os.environ.copy()
+            if self.wineprefix:
+                env["WINEPREFIX"] = self.wineprefix
+            
+            executable_to_check = final_command[0]
+            if not shutil.which(executable_to_check) and not os.path.exists(executable_to_check):
+                QMessageBox.critical(self, self.lang["error_title"], self.lang["exe_not_found"].format(exe=executable_to_check))
                 self.show()
                 self.update_rpc(details="In the launcher", state="Browsing...")
-            except Exception as e:
-                QMessageBox.critical(self, self.lang["error_title"], self.lang["game_launch_fail"].format(e=e))
-                self.show()
-                self.update_rpc(details="In the launcher", state="Browsing...")
+                return
+
+            self.hide()
+            process = subprocess.Popen(final_command, cwd=game_dir, env=env)
+
+            self.update_rpc(details="Playing Yandere Simulator", state="In-Game")
+            monitor_thread = threading.Thread(
+                target=self._wait_for_game_exit,
+                args=(process,),
+                daemon=True
+            )
+            monitor_thread.start()
+
+        except FileNotFoundError:
+            QMessageBox.critical(self, self.lang["error_title"], self.lang["game_launch_fail"].format(e=f"Executable '{final_command[0]}' not found. This should have been caught earlier."))
+            self.show()
+            self.update_rpc(details="In the launcher", state="Browsing...")
+        except Exception as e:
+            QMessageBox.critical(self, self.lang["error_title"], self.lang["game_launch_fail"].format(e=e))
+            self.show()
+            self.update_rpc(details="In the launcher", state="Browsing...")
 
     def select_exe(self):
         file, _ = QFileDialog.getOpenFileName(self, self.lang["select_exe_window_title"], "", self.lang["exe_file_filter"])
@@ -1016,20 +1112,42 @@ class YanixLauncher(QMainWindow):
             return
 
         yan_sim_zip_path = os.path.join(YANIX_PATH, "yansim.zip")
+        
+        should_download = False
 
-        if os.path.exists(YAN_SIM_NATIVE_EXE_PATH):
-            QMessageBox.information(self, self.lang["info_title"], self.lang["game_installed"])
-            return
+        if os.path.exists(YAN_SIM_INSTALL_PATH):
+            reply = QMessageBox.question(self, self.lang["download_game_window_title"],
+                                         self.lang["redownload_game_confirm"],
+                                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+            if reply == QMessageBox.StandardButton.Yes:
+                try:
+                    shutil.rmtree(YAN_SIM_INSTALL_PATH)
+                    if os.path.exists(CONFIG_PATH):
+                        with open(CONFIG_PATH, 'r') as f:
+                            configured_path = f.read().strip()
+                        if configured_path.startswith(YAN_SIM_INSTALL_PATH):
+                            os.remove(CONFIG_PATH)
+                    should_download = True
+                except Exception as e:
+                    QMessageBox.critical(self, self.lang["error_title"], self.lang["game_delete_fail"].format(e=e))
+                    return
+            else:
+                return
+        else:
+            reply = QMessageBox.question(self, self.lang["download_game_window_title"],
+                                         self.lang["download_game_prompt"],
+                                         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No)
+            if reply == QMessageBox.StandardButton.Yes:
+                should_download = True
+            else:
+                return
 
-        reply = QMessageBox.question(self, self.lang["download_game_window_title"],
-                                     self.lang["download_game_prompt"],
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply == QMessageBox.No:
+        if not should_download:
             return
 
         self.progress_dialog = QProgressDialog(self.lang.get("connecting", "Connecting..."), self.lang.get("cancel", "Cancel"), 0, 100, self)
         self.progress_dialog.setWindowTitle(self.lang["download_progress_window_title"])
-        self.progress_dialog.setWindowModality(Qt.WindowModal)
+        self.progress_dialog.setWindowModality(Qt.WindowModality.WindowModal)
         self.progress_dialog.setFixedSize(self.progress_dialog.size())
 
         self.thread = QThread()
@@ -1078,7 +1196,7 @@ class YanixLauncher(QMainWindow):
         self.progress_dialog.close()
         self.extract_dialog = QProgressDialog(self.lang["extracting_label"], self.lang.get("cancel", "Cancel"), 0, total_files, self)
         self.extract_dialog.setWindowTitle(self.lang["extraction_progress_window_title"])
-        self.extract_dialog.setWindowModality(Qt.WindowModal)
+        self.extract_dialog.setWindowModality(Qt.WindowModality.WindowModal)
         self.extract_dialog.setFixedSize(self.extract_dialog.size())
         self.extract_dialog.canceled.connect(self.cancel_download)
         self.extract_dialog.show()
@@ -1087,27 +1205,6 @@ class YanixLauncher(QMainWindow):
         if hasattr(self, 'extract_dialog'):
             self.extract_dialog.close()
         QMessageBox.information(self, self.lang["success_title"], self.lang["game_download_success"])
-
-    def delete_game(self):
-        if not os.path.exists(YAN_SIM_INSTALL_PATH):
-            QMessageBox.information(self, self.lang["info_title"], self.lang["game_not_found"])
-            return
-
-        reply = QMessageBox.question(self, self.lang["delete_game"],
-                                     self.lang["delete_game_confirm"],
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
-        if reply == QMessageBox.Yes:
-            try:
-                shutil.rmtree(YAN_SIM_INSTALL_PATH)
-                if os.path.exists(CONFIG_PATH):
-                    with open(CONFIG_PATH, 'r') as f:
-                        configured_path = f.read().strip()
-                    if configured_path.startswith(YAN_SIM_INSTALL_PATH):
-                        os.remove(CONFIG_PATH)
-                QMessageBox.information(self, self.lang["success_title"], self.lang["game_deleted_success"])
-            except Exception as e:
-                QMessageBox.critical(self, self.lang["error_title"], self.lang["game_delete_fail"].format(e=e))
-
 
     def manage_winetricks(self):
         if not shutil.which("winetricks"):
@@ -1131,8 +1228,8 @@ class YanixLauncher(QMainWindow):
     def _on_update_found(self, temp_file_path):
         reply = QMessageBox.question(self, self.lang["check_updates"],
                                      self.lang["update_outdated"],
-                                     QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes)
-        if reply == QMessageBox.Yes:
+                                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.Yes)
+        if reply == QMessageBox.StandardButton.Yes:
             try:
                 with open(temp_file_path, 'r') as f_new:
                     new_code = f_new.read()
@@ -1152,8 +1249,8 @@ class YanixLauncher(QMainWindow):
                     os.remove(temp_file_path)
 
     def open_settings(self):
-        dlg = SettingsDialog(self.lang_code, self.current_theme_name, self.lang, self.advanced_config, self)
-        dlg.exec_()
+        dlg = SettingsDialog(self.lang_code, self.current_theme_name, self.lang, self.advanced_config, self.is_advanced_mode_active, self)
+        dlg.exec()
         self.advanced_config = load_advanced_config()
         self.blog_view.load(QUrl(self.advanced_config.get("BLOGLINK", "https://yanix-launcher.blogspot.com")))
 
@@ -1168,24 +1265,21 @@ class YanixLauncher(QMainWindow):
 
         self.play_button.setText(self.lang["play"])
         self.settings_button.setText(self.lang["settings"])
-        self.select_exe_button.setText(self.lang["select_exe"])
         self.download_button.setText(self.lang["download"])
         self.winetricks_button.setText(self.lang["winetricks"])
-        self.wineprefix_button.setText(self.lang["wineprefix"])
-        self.delete_game_button.setText(self.lang["delete_game"])
         self.check_updates_button.setText(self.lang["check_updates"])
         self.support_button.setText(self.lang["support"])
         self.discord_button.setText(self.lang["discord"])
-        self.version_label.setText(f"{self.lang['welcome']} V {self.current_launcher_version}")
+        self.version_label.setText(f"{self.lang['welcome']} v{self.current_launcher_version} ")
 
         self.apply_theme(self.current_theme_name)
 
     def setup_ui(self):
         main_layout = QHBoxLayout()
         self.left_layout = QVBoxLayout()
-        self.left_layout.setAlignment(Qt.AlignTop)
+        self.left_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        font = QFont("Futura", 16)
+        font = QFont("Futura", 18)
         version_font = QFont("Futura", 10)
 
         self.play_button = QPushButton()
@@ -1198,11 +1292,6 @@ class YanixLauncher(QMainWindow):
         self.settings_button.clicked.connect(self.open_settings)
         self.left_layout.addWidget(self.settings_button)
 
-        self.select_exe_button = QPushButton()
-        self.select_exe_button.setFont(font)
-        self.select_exe_button.clicked.connect(self.select_exe)
-        self.left_layout.addWidget(self.select_exe_button)
-
         self.download_button = QPushButton()
         self.download_button.setFont(font)
         self.download_button.clicked.connect(self.download_game)
@@ -1212,16 +1301,6 @@ class YanixLauncher(QMainWindow):
         self.winetricks_button.setFont(font)
         self.winetricks_button.clicked.connect(self.manage_winetricks)
         self.left_layout.addWidget(self.winetricks_button)
-
-        self.wineprefix_button = QPushButton()
-        self.wineprefix_button.setFont(font)
-        self.wineprefix_button.clicked.connect(self.select_wineprefix)
-        self.left_layout.addWidget(self.wineprefix_button)
-
-        self.delete_game_button = QPushButton()
-        self.delete_game_button.setFont(font)
-        self.delete_game_button.clicked.connect(self.delete_game)
-        self.left_layout.addWidget(self.delete_game_button)
 
         self.check_updates_button = QPushButton()
         self.check_updates_button.setFont(font)
@@ -1243,6 +1322,10 @@ class YanixLauncher(QMainWindow):
         self.left_layout.addWidget(self.version_label)
 
         self.blog_view = QWebEngineView()
+        profile = QWebEngineProfile("yanix-blog-profile", self.blog_view)
+        profile.setHttpUserAgent(USER_AGENT)
+        page = QWebEnginePage(profile, self.blog_view)
+        self.blog_view.setPage(page)
         self.blog_view.load(QUrl(self.advanced_config.get("BLOGLINK", "https://yanix-launcher.blogspot.com")))
 
         main_layout.addLayout(self.left_layout, 1)
@@ -1254,7 +1337,7 @@ class YanixLauncher(QMainWindow):
 
 
 if __name__ == "__main__":
-    QCoreApplication.setAttribute(Qt.AA_ShareOpenGLContexts, True)
+    QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts, True)
     app = QApplication(sys.argv)
 
     lang_code = get_language()
@@ -1263,7 +1346,7 @@ if __name__ == "__main__":
     splash = YanixSplashScreen(current_lang_data)
     splash.show()
 
-    signals = DownloadSignals()
+    signals = DownloadSignals()  
     signals.update_splash.connect(splash.update_splash_content)
     signals.download_failed.connect(lambda msg: QMessageBox.critical(None, current_lang_data["download_failed"], msg))
     signals.extraction_progress.connect(lambda current, total: splash.update_splash_content(current_lang_data["extracting_data"], f"({current}/{total} files)"))
@@ -1284,4 +1367,4 @@ if __name__ == "__main__":
     launcher.show()
     splash.finish(launcher)
 
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
