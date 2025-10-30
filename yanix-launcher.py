@@ -4,7 +4,7 @@ import subprocess
 import webbrowser
 import shutil
 import time
-import threading
+import threading  
 import requests
 import zipfile
 import sys
@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
     QWidget, QLabel, QMessageBox, QComboBox, QDialog, QHBoxLayout,
     QSplashScreen, QProgressDialog, QLineEdit, QCheckBox
 )
-from PyQt6.QtGui import QFont, QPalette, QLinearGradient, QColor, QBrush, QIcon, QPainter, QPixmap
+from PyQt6.QtGui import QFont, QPalette, QLinearGradient, QColor, QBrush, QIcon, QPainter, QPixmap, QFontDatabase
 from PyQt6.QtCore import Qt, QUrl, QRect, QTimer, QCoreApplication, QObject, pyqtSignal, QThread
 
 try:
@@ -30,8 +30,7 @@ except ImportError:
     presence_enabled = False
 
 CLIENT_ID = '1383809366460989490'
-USER_AGENT = 'YanixLauncher/1.0.3'
-
+USER_AGENT = 'YanixLauncher/1.0.4'
 YANIX_PATH = os.path.expanduser("~/.local/share/yanix-launcher")
 DATA_DOWNLOAD_URL = "https://theofficialdt.github.io/data.zip"
 TEMP_ZIP_PATH = os.path.join(YANIX_PATH, "data.zip")
@@ -45,6 +44,9 @@ THEME_PATH = os.path.join(YANIX_PATH, "data/theme.txt")
 CUSTOM_THEMES_DIR = os.path.join(YANIX_PATH, "themes")
 ADVANCED_CONFIG_PATH = os.path.join(YANIX_PATH, "advanced_config.json")
 ADVANCED_FLAG_PATH = os.path.join(YANIX_PATH, "advanced_mode.flag")
+FIRST_RUN_FLAG_PATH = os.path.join(YANIX_PATH, ".first_run_complete")
+JOST_FONT_PATH = os.path.join(YANIX_PATH, "data/Font/Jost.ttf")
+
 
 YAN_SIM_DOWNLOAD_URL = "https://yanderesimulator.com/dl/latest.zip"
 YAN_SIM_INSTALL_PATH = os.path.join(YANIX_PATH, "game")
@@ -87,7 +89,8 @@ LANGUAGES = {
         "launch_command_label": "Custom Launch Command (%LC% = Game Command)",
         "exe_not_found": "'{exe}' is not installed or not in your PATH.",
         "wine_version_warning_title": "WINE Version Warning",
-        "wine_version_warning_body": "Your WINE version ({version}) is older than 8.0. Versions 7.22 and older may be unstable with Yandere Simulator. We recommend updating WINE for a better experience."
+        "wine_version_warning_body": "Your WINE version ({version}) is older than 8.0. Versions 7.22 and older may be unstable with Yandere Simulator. We recommend updating WINE for a better experience.",
+        "pad_mode": "Pad Mode", "pad_mode_not_found": "Pad Mode script not found at ~/.local/share/yanix-launcher/data/padmode.py", "credits": "Credits"
     },
     "es": {
         "welcome": "Bienvenido a Yanix Launcher", "loading": "Cargando", "play": "Jugar", "github": "GitHub", "settings": "Configuración",
@@ -103,7 +106,7 @@ LANGUAGES = {
         "update_error": "No se pudieron buscar actualizaciones.", "advanced_mode": "Modo Avanzado", "advanced_enabled": "Modo Avanzado Activado",
         "advanced_disabled": "Modo Avanzado Desactivado", "apply": "Aplicar", "theme_error_title": "Error de Tema",
         "theme_load_error": "No se pudo cargar el tema desde {filepath}: {e}", "advanced_settings_applied": "Configuración avanzada aplicada. Algunos cambios pueden requerir un reinicio.",
-        "lang_ai_warning": "Este idioma está parcialmente traducido por IA. Algunas traducciones pueden ser incorrectas.", "info_title": "Información",
+        "lang_ai_warning": "Este idioma es parcialmente traducido por IA. Algunas traducciones pueden ser incorrectas.", "info_title": "Información",
         "error_title": "Error", "lang_save_error": "No se pudo guardar la configuración de idioma: {e}", "theme_save_error": "No se pudo guardar la configuración del tema: {e}",
         "game_path_invalid": "La ruta del juego configurada no es válida. Por favor, selecciona el archivo .exe correcto.", "game_path_undefined": "La ruta del juego no está definida. Por favor, descarga el juego o selecciona el archivo .exe.",
         "wine_missing": "WINE no está instalado o no está en tu PATH. Por favor, instala WINE para ejecutar el juego.", "game_launch_fail": "Error al iniciar el juego: {e}",
@@ -121,7 +124,8 @@ LANGUAGES = {
         "launch_command_label": "Comando de Lanzamiento Personalizado (%LC% = Comando del Juego)",
         "exe_not_found": "'{exe}' no está instalado o no está en tu PATH.",
         "wine_version_warning_title": "Advertencia de Versión de WINE",
-        "wine_version_warning_body": "Tu versión de WINE ({version}) es anterior a la 8.0. Las versiones 7.22 y anteriores pueden ser inestables con Yandere Simulator. Recomendamos actualizar WINE para una mejor experiencia."
+        "wine_version_warning_body": "Tu versión de WINE ({version}) es anterior a la 8.0. Las versiones 7.22 y anteriores pueden ser inestables con Yandere Simulator. Recomendamos actualizar WINE para una mejor experiencia.",
+        "pad_mode": "Modo Pad", "pad_mode_not_found": "El script del Modo Pad no se encontró en ~/.local/share/yanix-launcher/data/padmode.py", "credits": "Créditos"
     },
     "pt": {
         "welcome": "Bem-vindo ao Yanix Launcher", "loading": "Carregando", "play": "Jogar", "github": "GitHub", "settings": "Configurações",
@@ -155,7 +159,8 @@ LANGUAGES = {
         "launch_command_label": "Comando de Lançamento Personalizado (%LC% = Comando do Jogo)",
         "exe_not_found": "'{exe}' não está instalado ou não está no seu PATH.",
         "wine_version_warning_title": "Aviso de Versão do WINE",
-        "wine_version_warning_body": "Sua versão do WINE ({version}) é anterior à 8.0. Versões 7.22 e mais antigas podem ser instáveis com o Yandere Simulator. Recomendamos atualizar o WINE para uma melhor experiência."
+        "wine_version_warning_body": "Sua versão do WINE ({version}) é anterior à 8.0. Versões 7.22 e mais antigas podem ser instáveis com o Yandere Simulator. Recomendamos atualizar o WINE para uma melhor experiência.",
+        "pad_mode": "Modo Pad", "pad_mode_not_found": "Script do Modo Pad não encontrado em ~/.local/share/yanix-launcher/data/padmode.py", "credits": "Créditos"
     },
     "ru": {
         "welcome": "Добро пожаловать в Yanix Launcher", "loading": "Загрузка", "play": "Играть", "github": "GitHub", "settings": "Настройки",
@@ -189,7 +194,8 @@ LANGUAGES = {
         "launch_command_label": "Пользовательская команда запуска (%LC% = Команда игры)",
         "exe_not_found": "'{exe}' не установлен или отсутствует в вашем PATH.",
         "wine_version_warning_title": "Предупреждение о версии WINE",
-        "wine_version_warning_body": "Ваша версия WINE ({version}) старше 8.0. Версии 7.22 и старше могут быть нестабильны с Yandere Simulator. Мы рекомендуем обновить WINE для лучшего опыта."
+        "wine_version_warning_body": "Ваша версия WINE ({version}) старше 8.0. Версии 7.22 и старше могут быть нестабильны с Yandere Simulator. Мы рекомендуем обновить WINE для лучшего опыта.",
+        "pad_mode": "Режим геймпада", "pad_mode_not_found": "Скрипт режима геймпада не найден в ~/.local/share/yanix-launcher/data/padmode.py", "credits": "Авторы"
     },
     "ja": {
         "welcome": "Yanix Launcherへようこそ", "loading": "読み込み中", "play": "プレイ", "github": "GitHub", "settings": "設定",
@@ -223,7 +229,8 @@ LANGUAGES = {
         "launch_command_label": "カスタム起動コマンド (%LC% = ゲームコマンド)",
         "exe_not_found": "'{exe}' がインストールされていないか、PATH にありません。",
         "wine_version_warning_title": "WINEバージョンの警告",
-        "wine_version_warning_body": "お使いのWINEのバージョン({version})は8.0より古いです。バージョン7.22以前はYandere Simulatorで不安定になる可能性があります。より良い体験のためにWINEを更新することをお勧めします。"
+        "wine_version_warning_body": "お使いのWINEのバージョン({version})は8.0より古いです。バージョン7.22以前はYandere Simulatorで不安定になる可能性があります。より良い体験のためにWINEを更新することをお勧めします。",
+        "pad_mode": "パッドモード", "pad_mode_not_found": "パッドモードスクリプトが~/.local/share/yanix-launcher/data/padmode.pyに見つかりません", "credits": "クレジット"
     },
     "ko": {
         "welcome": "Yanix Launcher에 오신 것을 환영합니다", "loading": "로딩 중", "play": "플레이", "github": "GitHub", "settings": "설정",
@@ -257,7 +264,8 @@ LANGUAGES = {
         "launch_command_label": "사용자 지정 실행 명령 (%LC% = 게임 명령)",
         "exe_not_found": "'{exe}'이(가) 설치되지 않았거나 PATH에 없습니다.",
         "wine_version_warning_title": "WINE 버전 경고",
-        "wine_version_warning_body": "WINE 버전({version})이 8.0보다 낮습니다. 7.22 및 이전 버전은 Yandere Simulator에서 불안정할 수 있습니다. 더 나은 경험을 위해 WINE을 업데이트하는 것이 좋습니다."
+        "wine_version_warning_body": "WINE 버전({version})이 8.0보다 낮습니다. 7.22 및 이전 버전은 Yandere Simulator에서 불안정할 수 있습니다. 더 나은 경험을 위해 WINE을 업데이트하는 것이 좋습니다.",
+        "pad_mode": "패드 모드", "pad_mode_not_found": "패드 모드 스크립트를 ~/.local/share/yanix-launcher/data/padmode.py에서 찾을 수 없습니다", "credits": "크레딧"
     },
     "ndk": {
         "welcome": "niko Niko-Launcher!", "loading": "You Activated the Nikodorito Easter-egg!", "play": "Niko", "github": "GitHub", "settings": "Meow",
@@ -290,11 +298,21 @@ LANGUAGES = {
         "launch_command_label": "Niko Launch Command (%LC% = Game Command), stupid",
         "exe_not_found": "'{exe}' is not installed or not in your PATH, stupid.",
         "wine_version_warning_title": "WINE Version Warning, stupid",
-        "wine_version_warning_body": "Your WINE version ({version}) is older than 8.0, stupid. Versions 7.22 and older may be unstable with Yandere Simulator. Update WINE for a better experience, stupid."
+        "wine_version_warning_body": "Your WINE version ({version}) is older than 8.0, stupid. Versions 7.22 and older may be unstable with Yandere Simulator. Update WINE for a better experience, stupid.",
+        "pad_mode": "Niko Pad Mode", "pad_mode_not_found": "Pad Mode niko script not found at ~/.local/share/yanix-launcher/data/padmode.py, stupid", "credits": "Niko Credits"
     }
 }
 
 THEMES = {
+    "halloween": {
+        "background_color_start": "#480d56",
+        "background_color_end": "#14011a",
+        "button_bg_color": "#ff8c00",
+        "button_text_color": "black",
+        "button_hover_bg_color": "#ffa500",
+        "label_text_color": "white",
+        "border_color": "#e65100"
+    },
     "yanix-default": {
         "background_color_start": "#ff4da6",
         "background_color_end": "#6666ff",
@@ -341,6 +359,27 @@ THEMES = {
         "border_color": "#d39e00"
     }
 }
+
+def handle_first_run():
+    if not os.path.exists(FIRST_RUN_FLAG_PATH):
+        data_dir = os.path.join(YANIX_PATH, "data")
+        if os.path.isdir(data_dir):
+            for filename in os.listdir(data_dir):
+                if filename not in ["multilang.txt", "theme.txt"]:
+                    file_path = os.path.join(data_dir, filename)
+                    try:
+                        if os.path.isfile(file_path) or os.path.islink(file_path):
+                            os.unlink(file_path)
+                        elif os.path.isdir(file_path):
+                            shutil.rmtree(file_path)
+                    except Exception as e:
+                        print(f"Failed to delete {file_path}. Reason: {e}")
+        try:
+            with open(FIRST_RUN_FLAG_PATH, "w") as f:
+                f.write("done")
+        except IOError:
+            pass
+
 
 def load_advanced_config():
     defaults = {
@@ -399,7 +438,7 @@ def get_theme():
                     return theme_setting
     except IOError:
         pass
-    return "yanix-default"
+    return "halloween"
 
 def get_wineprefix_path():
     try:
@@ -445,8 +484,8 @@ class YanixSplashScreen(QSplashScreen):
         rect = self.rect()
 
         gradient = QLinearGradient(0, 0, 0, rect.height())
-        gradient.setColorAt(0, QColor(THEMES["yanix-default"]["background_color_start"]))
-        gradient.setColorAt(1, QColor(THEMES["yanix-default"]["background_color_end"]))
+        gradient.setColorAt(0, QColor(THEMES["halloween"]["background_color_start"]))
+        gradient.setColorAt(1, QColor(THEMES["halloween"]["background_color_end"]))
         painter.fillRect(rect, gradient)
 
         painter.setPen(QColor(0, 0, 0))
@@ -454,20 +493,20 @@ class YanixSplashScreen(QSplashScreen):
 
         text_rect = QRect(rect.width() // 2 - 200, rect.height() // 2 - 50, 400, 100)
 
-        font_title = QFont("Futura", 32, QFont.Weight.Bold)
+        font_title = QFont("Jost", 32, QFont.Weight.Bold)
         painter.setFont(font_title)
         painter.setPen(QColor(255, 255, 255))
         painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, "Yanix Launcher")
 
-        font_message = QFont("Futura", 16)
+        font_message = QFont("Jost", 16)
         painter.setFont(font_message)
-        painter.setPen(QColor(0, 0, 0))
+        painter.setPen(QColor(255, 255, 255))
         message_rect = QRect(rect.width() // 2 - 200, rect.height() // 2 + 10, 400, 50)
         painter.drawText(message_rect, Qt.AlignmentFlag.AlignCenter, self.message)
 
-        font_progress = QFont("Futura", 12)
+        font_progress = QFont("Jost", 12)
         painter.setFont(font_progress)
-        painter.setPen(QColor(0, 0, 0))
+        painter.setPen(QColor(255, 255, 255))
         progress_rect = QRect(rect.width() - 150, rect.height() - 50, 100, 30)
         painter.drawText(progress_rect, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom, self.progress_text)
 
@@ -649,21 +688,26 @@ class SettingsDialog(QDialog):
         layout = QVBoxLayout()
 
         lang_label = QLabel(lang_data["select_language"])
+        lang_label.setFont(QFont("Jost", 12))
         layout.addWidget(lang_label)
         self.lang_selector = QComboBox()
         self.lang_selector.addItems(LANGUAGES.keys())
         self.lang_selector.setCurrentText(lang_code)
+        self.lang_selector.setFont(QFont("Jost", 10))
         layout.addWidget(self.lang_selector)
 
         theme_label = QLabel(lang_data["select_theme"])
+        theme_label.setFont(QFont("Jost", 12))
         layout.addWidget(theme_label)
         self.theme_selector = QComboBox()
         self.update_theme_selector_items()
         self.theme_selector.setCurrentText(self.current_theme_name)
+        self.theme_selector.setFont(QFont("Jost", 10))
         layout.addWidget(self.theme_selector)
 
         self.load_custom_theme_button = QPushButton(lang_data["load_custom_theme"])
         self.load_custom_theme_button.clicked.connect(self.load_custom_theme_file)
+        self.load_custom_theme_button.setFont(QFont("Jost", 10))
         layout.addWidget(self.load_custom_theme_button)
 
         if is_advanced:
@@ -672,6 +716,7 @@ class SettingsDialog(QDialog):
 
         self.apply_btn = QPushButton(lang_data["apply"])
         self.apply_btn.clicked.connect(self.apply_settings)
+        self.apply_btn.setFont(QFont("Jost", 10))
         layout.addWidget(self.apply_btn)
 
         self.setLayout(layout)
@@ -680,30 +725,38 @@ class SettingsDialog(QDialog):
     def setup_advanced_settings(self, layout, lang_data):
         adv_label = QLabel("Advanced Settings")
         adv_label.setStyleSheet("font-weight: bold; margin-top: 10px;")
+        adv_label.setFont(QFont("Jost", 14, QFont.Weight.Bold))
         layout.addWidget(adv_label)
 
         blog_link_label = QLabel("Blog Link URL")
+        blog_link_label.setFont(QFont("Jost", 12))
         layout.addWidget(blog_link_label)
         self.blog_link_edit = QLineEdit()
         self.blog_link_edit.setText(self.advanced_config.get("BLOGLINK", ""))
+        self.blog_link_edit.setFont(QFont("Jost", 10))
         layout.addWidget(self.blog_link_edit)
 
         self.discord_rpc_checkbox = QCheckBox("Enable Discord Rich Presence")
         self.discord_rpc_checkbox.setChecked(self.advanced_config.get("DISCORD_RPC", True))
+        self.discord_rpc_checkbox.setFont(QFont("Jost", 10))
         layout.addWidget(self.discord_rpc_checkbox)
 
         self.launch_command_label = QLabel(lang_data.get("launch_command_label", "Custom Launch Command (%LC% = Game Command)"))
+        self.launch_command_label.setFont(QFont("Jost", 12))
         layout.addWidget(self.launch_command_label)
         self.launch_command_edit = QLineEdit()
         self.launch_command_edit.setText(self.advanced_config.get("LAUNCH_COMMAND", ""))
+        self.launch_command_edit.setFont(QFont("Jost", 10))
         layout.addWidget(self.launch_command_edit)
 
         self.select_exe_button = QPushButton(self.parent().lang["select_exe"])
         self.select_exe_button.clicked.connect(self.parent().select_exe)
+        self.select_exe_button.setFont(QFont("Jost", 10))
         layout.addWidget(self.select_exe_button)
 
         self.wineprefix_button = QPushButton(self.parent().lang["wineprefix"])
         self.wineprefix_button.clicked.connect(self.parent().select_wineprefix)
+        self.wineprefix_button.setFont(QFont("Jost", 10))
         layout.addWidget(self.wineprefix_button)
 
     def apply_theme_to_settings_buttons(self):
@@ -712,9 +765,10 @@ class SettingsDialog(QDialog):
             QPushButton {{
                 color: {theme["button_text_color"]};
                 background-color: {theme["button_bg_color"]};
-                padding: 12px;
+                padding: 8px;
                 border-radius: 6px;
                 border: 1px solid {theme["border_color"]};
+                font-family: Jost;
             }}
             QPushButton:hover {{
                 background-color: {theme["button_hover_bg_color"]};
@@ -873,6 +927,7 @@ class DownloadWorker(QObject):
 
 class YanixLauncher(QMainWindow):
     game_finished = pyqtSignal()
+    pad_mode_finished = pyqtSignal()
     update_checker_signals = UpdateCheckerSignals()
 
     def __init__(self):
@@ -900,6 +955,7 @@ class YanixLauncher(QMainWindow):
         self.retranslate_ui()
         self.apply_theme(self.current_theme_name)
         self.game_finished.connect(self._on_game_finished)
+        self.pad_mode_finished.connect(self._on_pad_mode_finished)
         self.update_checker_signals.update_status.connect(self._on_update_check_result)
         self.update_checker_signals.update_found.connect(self._on_update_found)
         self.check_and_warn_wine_version()
@@ -938,7 +994,7 @@ class YanixLauncher(QMainWindow):
         except Exception:
             self.rpc.close()
             self.rpc = None
-    
+
     def check_and_warn_wine_version(self):
         try:
             if not shutil.which("wine"):
@@ -946,7 +1002,7 @@ class YanixLauncher(QMainWindow):
 
             result = subprocess.run(['wine', '--version'], capture_output=True, text=True, check=True)
             output = result.stdout.strip()
-            
+
             match = re.search(r'([0-9]+)\.([0-9]+)', output)
 
             if match:
@@ -965,7 +1021,7 @@ class YanixLauncher(QMainWindow):
             theme_data = load_custom_theme(self.current_theme_name, self.lang)
             if theme_data:
                 return theme_data
-        return THEMES.get(self.current_theme_name, THEMES["yanix-default"])
+        return THEMES.get(self.current_theme_name, THEMES["halloween"])
 
     def apply_theme(self, theme_name):
         self.current_theme_name = theme_name
@@ -975,21 +1031,22 @@ class YanixLauncher(QMainWindow):
             QPushButton {{
                 color: {theme["button_text_color"]};
                 background-color: {theme["button_bg_color"]};
-                padding: 15px;
+                padding: 10px;
                 border-radius: 6px;
                 border: 1px solid {theme["border_color"]};
+                font-family: Jost;
             }}
             QPushButton:hover {{
                 background-color: {theme["button_hover_bg_color"]};
             }}
         """
         for button in [self.play_button, self.settings_button,
-                       self.download_button, self.winetricks_button,
+                       self.download_button, self.pad_mode_button, self.winetricks_button,
                        self.check_updates_button,
-                       self.support_button, self.discord_button]:
+                       self.support_button, self.discord_button, self.credits_button]:
             button.setStyleSheet(button_style)
 
-        self.version_label.setStyleSheet(f"color: {theme['label_text_color']}; margin-top: 20px;")
+        self.version_label.setStyleSheet(f"color: {theme['label_text_color']}; margin-top: 20px; font-family: Jost;")
 
         blog_view_style = f"""
             QWebEngineView {{
@@ -1013,6 +1070,13 @@ class YanixLauncher(QMainWindow):
     def _wait_for_game_exit(self, process):
         process.wait()
         self.game_finished.emit()
+
+    def _on_pad_mode_finished(self):
+        self.show()
+
+    def _wait_for_pad_mode_exit(self, process):
+        process.wait()
+        self.pad_mode_finished.emit()
 
     def launch_game(self):
         wine_path_exe = None
@@ -1057,7 +1121,7 @@ class YanixLauncher(QMainWindow):
             env = os.environ.copy()
             if self.wineprefix:
                 env["WINEPREFIX"] = self.wineprefix
-            
+
             executable_to_check = final_command[0]
             if not shutil.which(executable_to_check) and not os.path.exists(executable_to_check):
                 QMessageBox.critical(self, self.lang["error_title"], self.lang["exe_not_found"].format(exe=executable_to_check))
@@ -1084,6 +1148,25 @@ class YanixLauncher(QMainWindow):
             QMessageBox.critical(self, self.lang["error_title"], self.lang["game_launch_fail"].format(e=e))
             self.show()
             self.update_rpc(details="In the launcher", state="Browsing...")
+
+    def launch_pad_mode(self):
+        pad_mode_script_path = os.path.join(YANIX_PATH, "data", "padmode.py")
+        if os.path.exists(pad_mode_script_path):
+            try:
+                self.hide()
+                process = subprocess.Popen(["python3", pad_mode_script_path])
+                monitor_thread = threading.Thread(
+                    target=self._wait_for_pad_mode_exit,
+                    args=(process,),
+                    daemon=True
+                )
+                monitor_thread.start()
+            except Exception as e:
+                self.show()
+                QMessageBox.critical(self, self.lang["error_title"], f"Failed to launch Pad Mode: {e}")
+        else:
+            QMessageBox.warning(self, self.lang["info_title"], self.lang["pad_mode_not_found"])
+
 
     def select_exe(self):
         file, _ = QFileDialog.getOpenFileName(self, self.lang["select_exe_window_title"], "", self.lang["exe_file_filter"])
@@ -1112,7 +1195,7 @@ class YanixLauncher(QMainWindow):
             return
 
         yan_sim_zip_path = os.path.join(YANIX_PATH, "yansim.zip")
-        
+
         should_download = False
 
         if os.path.exists(YAN_SIM_INSTALL_PATH):
@@ -1254,6 +1337,24 @@ class YanixLauncher(QMainWindow):
         self.advanced_config = load_advanced_config()
         self.blog_view.load(QUrl(self.advanced_config.get("BLOGLINK", "https://yanix-launcher.blogspot.com")))
 
+    def show_credits(self):
+        credits_text = """
+Yanix Launcher Was Made by:
+Seyu's Stuff
+
+Volunteers:
+Ayovizzion
+Ex-Volunteers:
+Ashxlek ← Also,Ashxlek Was the Second Dev.
+
+Supporters:
+Akashiraii, SlayAllDay2, Sara-chan
+
+Yanix Launcher™ Made by Yanix Launcher Community™, All Rights Reserved
+Yandere Simulator™ Made By YandereDev, All Rights Reserved
+"""
+        QMessageBox.information(self, self.lang["credits"], credits_text)
+
     def closeEvent(self, event):
         if self.rpc:
             self.rpc.close()
@@ -1266,11 +1367,13 @@ class YanixLauncher(QMainWindow):
         self.play_button.setText(self.lang["play"])
         self.settings_button.setText(self.lang["settings"])
         self.download_button.setText(self.lang["download"])
+        self.pad_mode_button.setText(self.lang["pad_mode"])
         self.winetricks_button.setText(self.lang["winetricks"])
         self.check_updates_button.setText(self.lang["check_updates"])
         self.support_button.setText(self.lang["support"])
         self.discord_button.setText(self.lang["discord"])
-        self.version_label.setText(f"{self.lang['welcome']} v{self.current_launcher_version} ")
+        self.credits_button.setText(self.lang["credits"])
+        self.version_label.setText(f"{self.lang['welcome']} v{self.current_launcher_version} — Crimson Catalyst" )
 
         self.apply_theme(self.current_theme_name)
 
@@ -1279,8 +1382,8 @@ class YanixLauncher(QMainWindow):
         self.left_layout = QVBoxLayout()
         self.left_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
 
-        font = QFont("Futura", 18)
-        version_font = QFont("Futura", 10)
+        font = QFont("Jost", 18)
+        version_font = QFont("Jost", 10)
 
         self.play_button = QPushButton()
         self.play_button.setFont(font)
@@ -1296,6 +1399,11 @@ class YanixLauncher(QMainWindow):
         self.download_button.setFont(font)
         self.download_button.clicked.connect(self.download_game)
         self.left_layout.addWidget(self.download_button)
+
+        self.pad_mode_button = QPushButton()
+        self.pad_mode_button.setFont(font)
+        self.pad_mode_button.clicked.connect(self.launch_pad_mode)
+        self.left_layout.addWidget(self.pad_mode_button)
 
         self.winetricks_button = QPushButton()
         self.winetricks_button.setFont(font)
@@ -1316,6 +1424,11 @@ class YanixLauncher(QMainWindow):
         self.discord_button.setFont(font)
         self.discord_button.clicked.connect(lambda: webbrowser.open("https://discord.gg/7JC4FGn69U"))
         self.left_layout.addWidget(self.discord_button)
+
+        self.credits_button = QPushButton()
+        self.credits_button.setFont(font)
+        self.credits_button.clicked.connect(self.show_credits)
+        self.left_layout.addWidget(self.credits_button)
 
         self.version_label = QLabel()
         self.version_label.setFont(version_font)
@@ -1340,13 +1453,17 @@ if __name__ == "__main__":
     QCoreApplication.setAttribute(Qt.ApplicationAttribute.AA_ShareOpenGLContexts, True)
     app = QApplication(sys.argv)
 
+    QFontDatabase.addApplicationFont(JOST_FONT_PATH)
+
+    handle_first_run()
+
     lang_code = get_language()
     current_lang_data = LANGUAGES.get(lang_code, LANGUAGES["en"])
 
     splash = YanixSplashScreen(current_lang_data)
     splash.show()
 
-    signals = DownloadSignals()  
+    signals = DownloadSignals()
     signals.update_splash.connect(splash.update_splash_content)
     signals.download_failed.connect(lambda msg: QMessageBox.critical(None, current_lang_data["download_failed"], msg))
     signals.extraction_progress.connect(lambda current, total: splash.update_splash_content(current_lang_data["extracting_data"], f"({current}/{total} files)"))
