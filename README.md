@@ -7,69 +7,49 @@
 Yanix runs the game through **WINE** (we recommend **WINE 8.0+**). Depending on your setup you might see a few graphical quirks, but most major issues were resolved in the Unity 6 build. If some characters look broken or don’t render, that’s a **game-side** problem for YandereDev to fix — not the launcher.
 
 * **Primary platform:** Linux
-* **macOS:** optimized build exists
-* **Windows:** planned, not available yet
+* **macOS:** runs well,but you need to change `YANIX_PATH`
+* **Windows:** 50% - Pad mode don't runs natively.
 
----
+System Requirements
+-------------------
 
-## Quick Fixes (Common Issues)
+Linux:
+- Intel i5 8th Gen / Ryzen 4000 Series (except 5 and 3)
+- 12 GB RAM
+- 3 GB Free Disk Space
+- 4 GB VRAM/GTT
 
-**White screen on launch (aka “White Screen of Death”)**
+Mac:
+- M1 / Intel i7 8th Gen / Hackintosh (run with Rosetta2 for Apple Silicon)
+- 12 GB RAM
+- 3 GB Free Disk Space
+- 4 GB VRAM/GTT
 
-```bash
-winetricks dxvk
+Installation
+------------
+
+Ubuntu / Debian:
 ```
-
-**Missing/broken letters in‑game** – don’t switch to GE‑Proton; instead install fonts:
-
-```bash
-winetricks corefonts   # or: winetricks allfonts
-```
-
-These target how Yandere Simulator interacts with WINE and system fonts.
-
----
-
-## Requirements
-
-Before running Yanix-Launcher, make sure these are installed:
-
-* **PyQt6** – UI toolkit
-* **PyQt6-WebEngine** – embedded web content
-* **requests** – update checks & networking
-* **WINE** – runs the game
-* **winetricks** – manages WINE components/tweaks
-
-> If your distro doesn’t provide the packages below, you can also install via `pip`:
->
-> ```bash
-> python -m pip install PyQt6 PyQt6-WebEngine requests --break-system-packages
-> ```
-
----
-
-## Installation
-
-### Ubuntu / Debian
-
-```bash
-sudo apt update
 sudo apt install python3-pyqt6 python3-pyqt6.qtwebengine python3-requests wine winetricks
 ```
-
-### Arch Linux
-
-```bash
+Arch Linux:
+```
 sudo pacman -S python-pyqt6 python-pyqt6-webengine python-requests wine winetricks
 ```
-
-### Fedora
-
-```bash
-sudo dnf install python3-pyqt6 python3-pyqt6-webengine python3-requests wine winetricks
+Fedora:
 ```
+sudo dnf install python3-qt6 python3-qt6-webengine python3-requests wine winetricks
+```
+Optional Dependencies
+---------------------
 
----
+These are optional but recommended for enhanced functionality:
+```
+pip install pygame pypresence
+```
+- pygame — for "Pad Mode"
+- pypresence — for Discord Rich Presence integration
+
 
 ## Notes
 
