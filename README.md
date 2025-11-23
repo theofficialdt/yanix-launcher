@@ -54,7 +54,6 @@ pip install pygame pypresence
 ## Notes
 
 * WINE **8.0 or newer** is recommended.
-* Yanix focuses on **Linux** first. macOS builds are tuned; Windows is planned.
 * Graphics/text glitches are generally **game** issues, not Yanix-Launcher bugs.
 
 ---
