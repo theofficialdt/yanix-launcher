@@ -4,7 +4,7 @@ import subprocess
 import webbrowser
 import shutil
 import time
-import threading  
+import threading
 import requests
 import zipfile
 import sys
@@ -12,6 +12,7 @@ import socket
 import json
 import tempfile
 import re
+import platform
 
 from PyQt6.QtWebEngineCore import QWebEngineProfile, QWebEnginePage
 from PyQt6.QtWebEngineWidgets import QWebEngineView
@@ -29,12 +30,18 @@ try:
 except ImportError:
     presence_enabled = False
 
+IS_WINDOWS = platform.system() == 'Windows'
+
 CLIENT_ID = '1383809366460989490'
-USER_AGENT = 'YanixLauncher/1.0.4'
-YANIX_PATH = os.path.expanduser("~/.local/share/yanix-launcher")
+USER_AGENT = 'YanixLauncher/1.0.5'
+
+if IS_WINDOWS:
+    YANIX_PATH = os.path.join(os.getenv('LOCALAPPDATA'), 'yanix-launcher')
+else:
+    YANIX_PATH = os.path.expanduser("~/.local/share/yanix-launcher")
 DATA_DOWNLOAD_URL = "https://theofficialdt.github.io/data.zip"
 TEMP_ZIP_PATH = os.path.join(YANIX_PATH, "data.zip")
-LATEST_VERSION_URL = "https://theofficialdt.github.io/latest.py"
+LATEST_VERSION_URL = "theofficialdt.github.io/latest.py"
 
 CONFIG_PATH = os.path.join(YANIX_PATH, "data/game_path.txt")
 LANG_PATH = os.path.join(YANIX_PATH, "data/multilang.txt")
@@ -304,16 +311,43 @@ LANGUAGES = {
 }
 
 THEMES = {
-    "halloween": {
-        "background_color_start": "#480d56",
-        "background_color_end": "#14011a",
-        "button_bg_color": "#ff8c00",
-        "button_text_color": "black",
-        "button_hover_bg_color": "#ffa500",
-        "label_text_color": "white",
-        "border_color": "#e65100"
+    "dragon-red": {
+        "background_color_start": "#660000",
+        "background_color_end": "#000000",
+        "button_bg_color": "#CC0000",
+        "button_text_color": "#FFFFFF",
+        "button_hover_bg_color": "#FF3333",
+        "label_text_color": "#FFFFFF",
+        "border_color": "#990000"
     },
-    "yanix-default": {
+    "dragon-blue": {
+        "background_color_start": "#000033",
+        "background_color_end": "#000000",
+        "button_bg_color": "#003366",
+        "button_text_color": "#FFFFFF",
+        "button_hover_bg_color": "#004C99",
+        "label_text_color": "#FFFFFF",
+        "border_color": "#336699"
+    },
+    "dragon-white": {
+        "background_color_start": "#FFFFFF",
+        "background_color_end": "#E0E0E0",
+        "button_bg_color": "#D3D3D3",
+        "button_text_color": "#000000",
+        "button_hover_bg_color": "#BEBEBE",
+        "label_text_color": "#000000",
+        "border_color": "#A9A9A9"
+    },
+    "dragon-dark": {
+        "background_color_start": "#1a1a1a",
+        "background_color_end": "#000000",
+        "button_bg_color": "#4d4d4d",
+        "button_text_color": "#FFFFFF",
+        "button_hover_bg_color": "#666666",
+        "label_text_color": "#FFFFFF",
+        "border_color": "#808080"
+    },
+    "yanix-legacy": {
         "background_color_start": "#ff4da6",
         "background_color_end": "#6666ff",
         "button_bg_color": "white",
@@ -339,24 +373,6 @@ THEMES = {
         "button_hover_bg_color": "#cccccc",
         "label_text_color": "black",
         "border_color": "#aaaaaa"
-    },
-    "ocean-blue": {
-        "background_color_start": "#007bff",
-        "background_color_end": "#0056b3",
-        "button_bg_color": "#6c757d",
-        "button_text_color": "white",
-        "button_hover_bg_color": "#5a6268",
-        "label_text_color": "white",
-        "border_color": "#495057"
-    },
-    "forest-green": {
-        "background_color_start": "#28a745",
-        "background_color_end": "#1e7e34",
-        "button_bg_color": "#ffc107",
-        "button_text_color": "black",
-        "button_hover_bg_color": "#e0a800",
-        "label_text_color": "white",
-        "border_color": "#d39e00"
     }
 }
 
@@ -364,16 +380,10 @@ def handle_first_run():
     if not os.path.exists(FIRST_RUN_FLAG_PATH):
         data_dir = os.path.join(YANIX_PATH, "data")
         if os.path.isdir(data_dir):
-            for filename in os.listdir(data_dir):
-                if filename not in ["multilang.txt", "theme.txt"]:
-                    file_path = os.path.join(data_dir, filename)
-                    try:
-                        if os.path.isfile(file_path) or os.path.islink(file_path):
-                            os.unlink(file_path)
-                        elif os.path.isdir(file_path):
-                            shutil.rmtree(file_path)
-                    except Exception as e:
-                        print(f"Failed to delete {file_path}. Reason: {e}")
+            try:
+                shutil.rmtree(data_dir)
+            except Exception as e:
+                print(f"Failed to delete {data_dir}. Reason: {e}")
         try:
             with open(FIRST_RUN_FLAG_PATH, "w") as f:
                 f.write("done")
@@ -438,7 +448,7 @@ def get_theme():
                     return theme_setting
     except IOError:
         pass
-    return "halloween"
+    return "dragon-red"
 
 def get_wineprefix_path():
     try:
@@ -484,8 +494,8 @@ class YanixSplashScreen(QSplashScreen):
         rect = self.rect()
 
         gradient = QLinearGradient(0, 0, 0, rect.height())
-        gradient.setColorAt(0, QColor(THEMES["halloween"]["background_color_start"]))
-        gradient.setColorAt(1, QColor(THEMES["halloween"]["background_color_end"]))
+        gradient.setColorAt(0, QColor(THEMES["yanix-legacy"]["background_color_start"]))
+        gradient.setColorAt(1, QColor(THEMES["yanix-legacy"]["background_color_end"]))
         painter.fillRect(rect, gradient)
 
         painter.setPen(QColor(0, 0, 0))
@@ -500,13 +510,13 @@ class YanixSplashScreen(QSplashScreen):
 
         font_message = QFont("Jost", 16)
         painter.setFont(font_message)
-        painter.setPen(QColor(255, 255, 255))
+        painter.setPen(QColor(0, 0, 0))
         message_rect = QRect(rect.width() // 2 - 200, rect.height() // 2 + 10, 400, 50)
         painter.drawText(message_rect, Qt.AlignmentFlag.AlignCenter, self.message)
 
         font_progress = QFont("Jost", 12)
         painter.setFont(font_progress)
-        painter.setPen(QColor(255, 255, 255))
+        painter.setPen(QColor(0, 0, 0))
         progress_rect = QRect(rect.width() - 150, rect.height() - 50, 100, 30)
         painter.drawText(progress_rect, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignBottom, self.progress_text)
 
@@ -754,10 +764,11 @@ class SettingsDialog(QDialog):
         self.select_exe_button.setFont(QFont("Jost", 10))
         layout.addWidget(self.select_exe_button)
 
-        self.wineprefix_button = QPushButton(self.parent().lang["wineprefix"])
-        self.wineprefix_button.clicked.connect(self.parent().select_wineprefix)
-        self.wineprefix_button.setFont(QFont("Jost", 10))
-        layout.addWidget(self.wineprefix_button)
+        if not IS_WINDOWS:
+            self.wineprefix_button = QPushButton(self.parent().lang["wineprefix"])
+            self.wineprefix_button.clicked.connect(self.parent().select_wineprefix)
+            self.wineprefix_button.setFont(QFont("Jost", 10))
+            layout.addWidget(self.wineprefix_button)
 
     def apply_theme_to_settings_buttons(self):
         theme = self.parent().get_current_theme_data()
@@ -996,6 +1007,8 @@ class YanixLauncher(QMainWindow):
             self.rpc = None
 
     def check_and_warn_wine_version(self):
+        if IS_WINDOWS:
+            return
         try:
             if not shutil.which("wine"):
                 return
@@ -1021,7 +1034,7 @@ class YanixLauncher(QMainWindow):
             theme_data = load_custom_theme(self.current_theme_name, self.lang)
             if theme_data:
                 return theme_data
-        return THEMES.get(self.current_theme_name, THEMES["halloween"])
+        return THEMES.get(self.current_theme_name, THEMES["dragon-red"])
 
     def apply_theme(self, theme_name):
         self.current_theme_name = theme_name
@@ -1094,7 +1107,10 @@ class YanixLauncher(QMainWindow):
             QMessageBox.critical(self, self.lang["error_title"], self.lang["game_path_undefined"])
             return
 
-        base_game_command = ["wine", wine_path_exe]
+        if IS_WINDOWS:
+            base_game_command = [wine_path_exe]
+        else:
+            base_game_command = ["wine", wine_path_exe]
         game_dir = os.path.dirname(wine_path_exe)
 
         custom_command_str = self.advanced_config.get("LAUNCH_COMMAND", "").strip()
@@ -1119,7 +1135,7 @@ class YanixLauncher(QMainWindow):
 
         try:
             env = os.environ.copy()
-            if self.wineprefix:
+            if self.wineprefix and not IS_WINDOWS:
                 env["WINEPREFIX"] = self.wineprefix
 
             executable_to_check = final_command[0]
@@ -1154,7 +1170,7 @@ class YanixLauncher(QMainWindow):
         if os.path.exists(pad_mode_script_path):
             try:
                 self.hide()
-                process = subprocess.Popen(["python3", pad_mode_script_path])
+                process = subprocess.Popen([sys.executable, pad_mode_script_path])
                 monitor_thread = threading.Thread(
                     target=self._wait_for_pad_mode_exit,
                     args=(process,),
@@ -1179,6 +1195,8 @@ class YanixLauncher(QMainWindow):
                 QMessageBox.critical(self, self.lang["error_title"], self.lang["exe_save_fail"].format(e=e))
 
     def select_wineprefix(self):
+        if IS_WINDOWS:
+            return
         directory = QFileDialog.getExistingDirectory(self, self.lang["wineprefix"])
         if directory:
             try:
@@ -1290,6 +1308,9 @@ class YanixLauncher(QMainWindow):
         QMessageBox.information(self, self.lang["success_title"], self.lang["game_download_success"])
 
     def manage_winetricks(self):
+        if IS_WINDOWS:
+            QMessageBox.information(self, "Info", "Winetricks is not needed on Windows.")
+            return
         if not shutil.which("winetricks"):
             QMessageBox.critical(self, self.lang["error_title"], self.lang["winetricks_missing"])
         else:
@@ -1324,7 +1345,7 @@ class YanixLauncher(QMainWindow):
 
                 QMessageBox.information(self, self.lang["check_updates"], self.lang["update_restart_prompt"])
 
-                os.execv(sys.executable, ['python3'] + sys.argv)
+                os.execv(sys.executable, [sys.executable] + sys.argv)
 
             except Exception as e:
                 QMessageBox.critical(self, self.lang["update_error_window_title"], self.lang["update_fail"].format(e=e))
@@ -1343,9 +1364,7 @@ Yanix Launcher Was Made by:
 Seyu's Stuff
 
 Volunteers:
-Ayovizzion
-Ex-Volunteers:
-Ashxlek ← Also,Ashxlek Was the Second Dev.
+Ayovizzion, Ashxlek
 
 Supporters:
 Akashiraii, SlayAllDay2, Sara-chan
@@ -1373,7 +1392,7 @@ Yandere Simulator™ Made By YandereDev, All Rights Reserved
         self.support_button.setText(self.lang["support"])
         self.discord_button.setText(self.lang["discord"])
         self.credits_button.setText(self.lang["credits"])
-        self.version_label.setText(f"{self.lang['welcome']} v{self.current_launcher_version} — Crimson Catalyst" )
+        self.version_label.setText(f"{self.lang['welcome']} v{self.current_launcher_version} ")
 
         self.apply_theme(self.current_theme_name)
 
@@ -1408,7 +1427,8 @@ Yandere Simulator™ Made By YandereDev, All Rights Reserved
         self.winetricks_button = QPushButton()
         self.winetricks_button.setFont(font)
         self.winetricks_button.clicked.connect(self.manage_winetricks)
-        self.left_layout.addWidget(self.winetricks_button)
+        if not IS_WINDOWS:
+            self.left_layout.addWidget(self.winetricks_button)
 
         self.check_updates_button = QPushButton()
         self.check_updates_button.setFont(font)
