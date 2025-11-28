@@ -38,7 +38,8 @@ sudo pacman -S python-pyqt6 python-pyqt6-webengine python-requests wine winetric
 ```
 Fedora:
 ```
-sudo dnf install python3-qt6 python3-qt6-webengine python3-requests wine winetricks
+sudo dnf install python3-pyqt6 python3-pyqt6-webengine python3-requests wine winetricks
+
 ```
 Optional Dependencies
 ---------------------
