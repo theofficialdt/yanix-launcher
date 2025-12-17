@@ -46,7 +46,7 @@ if IS_MACOS:
     sys.exit(1)
 
 CLIENT_ID = '1383809366460989490'
-USER_AGENT = 'YanixLauncher/1.0.7'
+USER_AGENT = 'YanixLauncher/1.0.7.1'
 
 if IS_WINDOWS:
     YANIX_PATH = os.path.join(os.getenv('LOCALAPPDATA'), 'yanix-launcher')
