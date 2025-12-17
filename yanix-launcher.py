@@ -95,9 +95,6 @@ DEFAULT_CONFIG = {
     "first_run": True
 }
 
-# ... [O CÓDIGO DAS TRADUÇÕES E TEMAS PERMANECE O MESMO] ...
-# (Estou omitindo as variáveis LANGUAGES e THEMES para poupar espaço, 
-#  elas não precisam ser alteradas)
 
 LANGUAGES = {
     "en": {
