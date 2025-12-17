@@ -46,8 +46,7 @@ if IS_MACOS:
     sys.exit(1)
 
 CLIENT_ID = '1383809366460989490'
-USER_AGENT = 'YanixLauncher/1.0.7'
-
+USER_AGENT = 'YanixLauncher/1.0.7.1"
 if IS_WINDOWS:
     YANIX_PATH = os.path.join(os.getenv('LOCALAPPDATA'), 'yanix-launcher')
 else:
@@ -65,9 +64,8 @@ CONFIG_FILE = os.path.join(YANIX_PATH, "config.json")
 ICON_PATH = os.path.join(YANIX_PATH, "data/yanix.png")
 CUSTOM_THEMES_DIR = os.path.join(YANIX_PATH, "themes")
 
-# --- CORREÇÃO 1: Caminho corrigido para remover a duplicação "backgrounds/backgrounds" ---
 BACKGROUNDS_DIR = os.path.join(YANIX_PATH, "backgrounds") 
-# ---------------------------------------------------------------------------------------
+
 
 PADMODE_DIR = os.path.join(YANIX_PATH, "padmode")
 PADMODE_SCRIPT_PATH = os.path.join(PADMODE_DIR, "padmode.py")
