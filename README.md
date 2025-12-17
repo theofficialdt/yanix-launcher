@@ -7,7 +7,7 @@
 Yanix runs the game through **WINE** (we recommend **WINE 8.0+**). Depending on your setup you might see a few graphical quirks, but most major issues were resolved in the Unity 6 build. If some characters look broken or don’t render, that’s a **game-side** problem for YandereDev to fix — not the launcher.
 
 * **Primary platform:** Linux
-* **macOS:** runs well,but you need to change `YANIX_PATH`
+* **macOS:** Not Supported.
 * **Windows:** 50% - Pad mode don't runs natively.
 
 System Requirements
