@@ -38,8 +38,6 @@ except ImportError:
 IS_WINDOWS = platform.system() == 'Windows'
 IS_MACOS = platform.system() == 'Darwin'
 
-
-
 if IS_MACOS:
     app = QApplication(sys.argv)
     QMessageBox.critical(None, "macOS Detected", "macOS and Apple Silicon are unsupported. Use a Linux distribution. FEX may be used as an alternative on Apple hardware with Asahi Linux")
@@ -47,6 +45,7 @@ if IS_MACOS:
 
 CLIENT_ID = '1383809366460989490'
 USER_AGENT = 'YanixLauncher/1.0.7.1'
+
 if IS_WINDOWS:
     YANIX_PATH = os.path.join(os.getenv('LOCALAPPDATA'), 'yanix-launcher')
 else:
@@ -63,10 +62,7 @@ TEMP_BG_ZIP_PATH = os.path.join(YANIX_PATH, "backgrounds.zip")
 CONFIG_FILE = os.path.join(YANIX_PATH, "config.json")
 ICON_PATH = os.path.join(YANIX_PATH, "data/yanix.png")
 CUSTOM_THEMES_DIR = os.path.join(YANIX_PATH, "themes")
-
-BACKGROUNDS_DIR = os.path.join(YANIX_PATH, "backgrounds") 
-
-
+BACKGROUNDS_DIR = os.path.join(YANIX_PATH, "backgrounds")
 PADMODE_DIR = os.path.join(YANIX_PATH, "padmode")
 PADMODE_SCRIPT_PATH = os.path.join(PADMODE_DIR, "padmode.py")
 JOST_FONT_PATH = os.path.join(YANIX_PATH, "data/Font/Jost.ttf")
@@ -94,7 +90,6 @@ DEFAULT_CONFIG = {
     "fsr": False,
     "first_run": True
 }
-
 
 LANGUAGES = {
     "en": {
@@ -672,7 +667,6 @@ class StartupWorker(QObject):
                 "Failed to extract backgrounds."
             )
              
-             # --- CORREÇÃO 2: Verificar subpastas aninhadas em Backgrounds e mover arquivos ---
              extracted_items = os.listdir(BACKGROUNDS_DIR)
              if len(extracted_items) == 1:
                 potential_subfolder = os.path.join(BACKGROUNDS_DIR, extracted_items[0])
@@ -683,7 +677,6 @@ class StartupWorker(QObject):
                         destination_item_path = os.path.join(BACKGROUNDS_DIR, item_name)
                         shutil.move(source_item_path, destination_item_path)
                     os.rmdir(source_dir)
-             # ----------------------------------------------------------------------------------
 
         if self.config.get("first_run", False) and not IS_WINDOWS:
             if shutil.which("winetricks"):
@@ -1493,18 +1486,17 @@ class YanixLauncher(QMainWindow):
 
     def show_credits(self):
         credits_text = """
-Yanix Launcher Is Made by:
-Seyu's Stuff/YLDev
+Yanix Launcher Was Made by:
+Seyu's Stuff
 
 Volunteers:
-Ayovizzion, Ashxlek (0.4-0.9~1.0.0)
+Ayovizzion, Ashxlek
 
 Supporters:
 Akashiraii, SlayAllDay2, Sara-chan
 
 Yanix Launcher™ Made by Yanix Launcher Community™, All Rights Reserved
 Yandere Simulator™ Made By YandereDev, All Rights Reserved
-Licensed by NLv4
 """
         QMessageBox.information(self, self.lang["credits"], credits_text)
 
