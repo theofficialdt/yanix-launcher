@@ -46,7 +46,7 @@ if IS_MACOS:
     sys.exit(1)
 
 CLIENT_ID = '1383809366460989490'
-USER_AGENT = 'YanixLauncher/1.0.7.1'
+USER_AGENT = 'YanixLauncher/1.0.7'
 
 if IS_WINDOWS:
     YANIX_PATH = os.path.join(os.getenv('LOCALAPPDATA'), 'yanix-launcher')
@@ -1509,7 +1509,7 @@ Yandere Simulator™ Made By YandereDev, All Rights Reserved
         self.support_button.setText(self.lang["support"])
         self.discord_button.setText(self.lang["discord"])
         self.credits_button.setText(self.lang["credits"])
-        self.version_label.setText(f"{self.lang['welcome']} v{self.current_launcher_version} — Flowers ")
+        self.version_label.setText(f"{self.lang['welcome']} v{self.current_launcher_version} — Yorkipoo ")
         self.apply_theme(self.config["theme"])
 
     def setup_ui(self):
