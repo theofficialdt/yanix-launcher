@@ -14,6 +14,7 @@ import tempfile
 import re
 import platform
 import warnings
+import base64
 
 warnings.filterwarnings("ignore", category=RuntimeWarning, message="coroutine 'BaseClient.read_output' was never awaited")
 
@@ -25,8 +26,8 @@ from PyQt6.QtWidgets import (
     QSplashScreen, QProgressDialog, QLineEdit, QCheckBox, QSystemTrayIcon,
     QMenu, QStyle
 )
-from PyQt6.QtGui import QFont, QPalette, QLinearGradient, QColor, QBrush, QIcon, QPainter, QFontDatabase, QAction
-from PyQt6.QtCore import Qt, QUrl, QRect, QObject, pyqtSignal, QThread, QCoreApplication
+from PyQt6.QtGui import QFont, QPalette, QLinearGradient, QColor, QBrush, QIcon, QPainter, QFontDatabase, QAction, QImage, QPixmap
+from PyQt6.QtCore import Qt, QUrl, QRect, QObject, pyqtSignal, QThread, QCoreApplication, QByteArray
 
 try:
     from pypresence import Presence
@@ -35,9 +36,17 @@ except ImportError:
     presence_enabled = False
 
 IS_WINDOWS = platform.system() == 'Windows'
+IS_MACOS = platform.system() == 'Darwin'
+
+
+
+if IS_MACOS:
+    app = QApplication(sys.argv)
+    QMessageBox.critical(None, "macOS Detected", "macOS and Apple Silicon are unsupported. Use a Linux distribution. FEX may be used as an alternative on Apple hardware with Asahi Linux")
+    sys.exit(1)
 
 CLIENT_ID = '1383809366460989490'
-USER_AGENT = 'YanixLauncher/1.0.6'
+USER_AGENT = 'YanixLauncher/1.0.7'
 
 if IS_WINDOWS:
     YANIX_PATH = os.path.join(os.getenv('LOCALAPPDATA'), 'yanix-launcher')
@@ -45,12 +54,19 @@ else:
     YANIX_PATH = os.path.expanduser("~/.local/share/yanix-launcher")
 
 DATA_DOWNLOAD_URL = "https://theofficialdt.github.io/data.zip"
-TEMP_ZIP_PATH = os.path.join(YANIX_PATH, "data.zip")
+BACKGROUNDS_DOWNLOAD_URL = "https://theofficialdt.github.io/downloads/yorkipoo/backgrounds/backgrounds.zip"
+PADMODE_DOWNLOAD_URL = "https://theofficialdt.github.io/downloads/padmode.py"
 LATEST_VERSION_URL = "https://raw.githubusercontent.com/theofficialdt/yanix-launcher/refs/heads/main/yanix-launcher.py"
+
+TEMP_ZIP_PATH = os.path.join(YANIX_PATH, "data.zip")
+TEMP_BG_ZIP_PATH = os.path.join(YANIX_PATH, "backgrounds.zip")
 
 CONFIG_FILE = os.path.join(YANIX_PATH, "config.json")
 ICON_PATH = os.path.join(YANIX_PATH, "data/yanix.png")
 CUSTOM_THEMES_DIR = os.path.join(YANIX_PATH, "themes")
+BACKGROUNDS_DIR = os.path.join(YANIX_PATH, "backgrounds")
+PADMODE_DIR = os.path.join(YANIX_PATH, "padmode")
+PADMODE_SCRIPT_PATH = os.path.join(PADMODE_DIR, "padmode.py")
 JOST_FONT_PATH = os.path.join(YANIX_PATH, "data/Font/Jost.ttf")
 
 YAN_SIM_DOWNLOAD_URL = "https://yanderesimulator.com/dl/latest.zip"
@@ -60,10 +76,12 @@ YAN_SIM_NATIVE_EXE_PATH = os.path.join(YAN_SIM_INSTALL_PATH, YAN_SIM_EXE_NAME)
 
 os.makedirs(os.path.dirname(CONFIG_FILE), exist_ok=True)
 os.makedirs(CUSTOM_THEMES_DIR, exist_ok=True)
+os.makedirs(BACKGROUNDS_DIR, exist_ok=True)
+os.makedirs(PADMODE_DIR, exist_ok=True)
 
 DEFAULT_CONFIG = {
     "language": "en",
-    "theme": "flowers-pink",
+    "theme": "yorkipoo-silver",
     "game_path": "",
     "wine_prefix": "",
     "advanced_mode": False,
@@ -109,8 +127,9 @@ LANGUAGES = {
         "exe_not_found": "'{exe}' is not installed or not in your PATH.",
         "wine_version_warning_title": "WINE Version Warning",
         "wine_version_warning_body": "Your WINE version ({version}) is older than 8.0. Versions 7.22 and older may be unstable with Yandere Simulator. We recommend updating WINE for a better experience.",
-        "pad_mode": "Pad Mode", "pad_mode_not_found": "Pad Mode script not found at ~/.local/share/yanix-launcher/data/padmode.py", "credits": "Credits",
-        "open_folder": "Open Game Folder", "gamemode": "Enable GameMode (Linux)", "fsr": "Enable FSR (Linux)"
+        "pad_mode": "Pad Mode", "pad_mode_not_found": "Pad Mode script not found. It will be installed in {path}.", "credits": "Credits",
+        "open_folder": "Open Game Folder", "gamemode": "Enable GameMode (Linux)", "fsr": "Enable FSR (Linux)",
+        "downloading_backgrounds": "Downloading Backgrounds...", "installing_corefonts": "Installing corefonts (winetricks corefonts)...", "installing_dxvk": "Installing dxvk (winetricks dxvk)..."
     },
     "es": {
         "welcome": "Bienvenido a Yanix Launcher", "loading": "Cargando", "play": "Jugar", "github": "GitHub", "settings": "Configuración",
@@ -145,8 +164,9 @@ LANGUAGES = {
         "exe_not_found": "'{exe}' no está instalado o no está en tu PATH.",
         "wine_version_warning_title": "Advertencia de Versión de WINE",
         "wine_version_warning_body": "Tu versión de WINE ({version}) es anterior a la 8.0. Las versiones 7.22 y anteriores pueden ser inestables con Yandere Simulator. Recomendamos actualizar WINE para una mejor experiencia.",
-        "pad_mode": "Modo Pad", "pad_mode_not_found": "El script del Modo Pad no se encontró en ~/.local/share/yanix-launcher/data/padmode.py", "credits": "Créditos",
-        "open_folder": "Abrir Carpeta del Juego", "gamemode": "Habilitar GameMode (Linux)", "fsr": "Habilitar FSR (Linux)"
+        "pad_mode": "Modo Pad", "pad_mode_not_found": "Script del Modo Pad no encontrado. Se instalará en {path}.", "credits": "Créditos",
+        "open_folder": "Abrir Carpeta del Juego", "gamemode": "Habilitar GameMode (Linux)", "fsr": "Habilitar FSR (Linux)",
+        "downloading_backgrounds": "Descargando Fondos...", "installing_corefonts": "Instalando corefonts (winetricks corefonts)...", "installing_dxvk": "Instalando dxvk (winetricks dxvk)..."
     },
     "pt": {
         "welcome": "Bem-vindo ao Yanix Launcher", "loading": "Carregando", "play": "Jogar", "github": "GitHub", "settings": "Configurações",
@@ -181,8 +201,9 @@ LANGUAGES = {
         "exe_not_found": "'{exe}' não está instalado ou não está no seu PATH.",
         "wine_version_warning_title": "Aviso de Versão do WINE",
         "wine_version_warning_body": "Sua versão do WINE ({version}) é anterior à 8.0. Versões 7.22 e mais antigas podem ser instáveis com o Yandere Simulator. Recomendamos atualizar o WINE para uma melhor experiência.",
-        "pad_mode": "Modo Pad", "pad_mode_not_found": "Script do Modo Pad não encontrado em ~/.local/share/yanix-launcher/data/padmode.py", "credits": "Créditos",
-        "open_folder": "Abrir Pasta do Jogo", "gamemode": "Habilitar GameMode (Linux)", "fsr": "Habilitar FSR (Linux)"
+        "pad_mode": "Modo Pad", "pad_mode_not_found": "Script do Modo Pad não encontrado. Ele será instalado em {path}.", "credits": "Créditos",
+        "open_folder": "Abrir Pasta do Jogo", "gamemode": "Habilitar GameMode (Linux)", "fsr": "Habilitar FSR (Linux)",
+        "downloading_backgrounds": "Baixando Planos de Fundo...", "installing_corefonts": "Instalando corefonts (winetricks corefonts)...", "installing_dxvk": "Instalando dxvk (winetricks dxvk)..."
     },
     "ru": {
         "welcome": "Добро пожаловать в Yanix Launcher", "loading": "Загрузка", "play": "Играть", "github": "GitHub", "settings": "Настройки",
@@ -217,8 +238,9 @@ LANGUAGES = {
         "exe_not_found": "'{exe}' не установлен или отсутствует в вашем PATH.",
         "wine_version_warning_title": "Предупреждение о версии WINE",
         "wine_version_warning_body": "Ваша версия WINE ({version}) старше 8.0. Версии 7.22 и старше могут быть нестабильны с Yandere Simulator. Мы рекомендуем обновить WINE для лучшего опыта.",
-        "pad_mode": "Режим геймпада", "pad_mode_not_found": "Скрипт режима геймпада не найден в /.local/share/yanix-launcher/data/padmode.py", "credits": "Авторы",
-        "open_folder": "Открыть папку с игрой", "gamemode": "Включить GameMode (Linux)", "fsr": "Включить FSR (Linux)"
+        "pad_mode": "Режим геймпада", "pad_mode_not_found": "Скрипт режима геймпада не найден. Он будет установлен в {path}.", "credits": "Авторы",
+        "open_folder": "Открыть папку с игрой", "gamemode": "Включить GameMode (Linux)", "fsr": "Включить FSR (Linux)",
+        "downloading_backgrounds": "Загрузка фонов...", "installing_corefonts": "Установка corefonts (winetricks corefonts)...", "installing_dxvk": "Установка dxvk (winetricks dxvk)..."
     },
     "ja": {
         "welcome": "Yanix Launcherへようこそ", "loading": "読み込み中", "play": "プレイ", "github": "GitHub", "settings": "設定",
@@ -253,8 +275,9 @@ LANGUAGES = {
         "exe_not_found": "'{exe}' がインストールされていないか、PATH にありません。",
         "wine_version_warning_title": "WINEバージョンの警告",
         "wine_version_warning_body": "お使いのWINEのバージョン({version})は8.0より古いです。バージョン7.22以前はYandere Simulatorで不安定になる可能性があります。より良い体験のためにWINEを更新することをお勧めします。",
-        "pad_mode": "パッドモード", "pad_mode_not_found": "パッドモードスクリプトが/.local/share/yanix-launcher/data/padmode.pyに見つかりません", "credits": "クレジット",
-        "open_folder": "ゲームフォルダを開く", "gamemode": "GameModeを有効にする (Linux)", "fsr": "FSRを有効にする (Linux)"
+        "pad_mode": "パッドモード", "pad_mode_not_found": "パッドモードスクリプトが見つかりません。 {path}にインストールされます。", "credits": "クレジット",
+        "open_folder": "ゲームフォルダを開く", "gamemode": "GameModeを有効にする (Linux)", "fsr": "FSRを有効にする (Linux)",
+        "downloading_backgrounds": "背景をダウンロード中...", "installing_corefonts": "corefontsをインストール中 (winetricks corefonts)...", "installing_dxvk": "dxvkをインストール中 (winetricks dxvk)..."
     },
     "ko": {
         "welcome": "Yanix Launcher에 오신 것을 환영합니다", "loading": "로딩 중", "play": "플레이", "github": "GitHub", "settings": "설정",
@@ -289,8 +312,9 @@ LANGUAGES = {
         "exe_not_found": "'{exe}'이(가) 설치되지 않았거나 PATH에 없습니다.",
         "wine_version_warning_title": "WINE 버전 경고",
         "wine_version_warning_body": "WINE 버전({version})이 8.0보다 낮습니다. 7.22 및 이전 버전은 Yandere Simulator에서 불안정할 수 있습니다. 더 나은 경험을 위해 WINE을 업데이트하는 것이 좋습니다.",
-        "pad_mode": "패드 모드", "pad_mode_not_found": "패드 모드 스크립트를 ~/.local/share/yanix-launcher/data/padmode.py에서 찾을 수 없습니다", "credits": "크레딧",
-        "open_folder": "게임 폴더 열기", "gamemode": "GameMode 활성화 (Linux)", "fsr": "FSR 활성화 (Linux)"
+        "pad_mode": "패드 모드", "pad_mode_not_found": "패드 모드 스크립트를 찾을 수 없습니다. {path}에 설치됩니다.", "credits": "크레딧",
+        "open_folder": "게임 폴더 열기", "gamemode": "GameMode 활성화 (Linux)", "fsr": "FSR 활성화 (Linux)",
+        "downloading_backgrounds": "배경 다운로드 중...", "installing_corefonts": "corefonts 설치 중 (winetricks corefonts)...", "installing_dxvk": "dxvk 설치 중 (winetricks dxvk)..."
     },
     "ndk": {
         "welcome": "niko Niko-Launcher!", "loading": "You Activated the Nikodorito Easter-egg!", "play": "Niko", "github": "GitHub", "settings": "Meow",
@@ -324,8 +348,9 @@ LANGUAGES = {
         "exe_not_found": "'{exe}' is not installed or not in your PATH, stupid.",
         "wine_version_warning_title": "WINE Version Warning, stupid",
         "wine_version_warning_body": "Your WINE version ({version}) is older than 8.0, stupid. Versions 7.22 and older may be unstable with Yandere Simulator. Update WINE for a better experience, stupid.",
-        "pad_mode": "Niko Pad Mode", "pad_mode_not_found": "Pad Mode niko script not found at ~/.local/share/yanix-launcher/data/padmode.py, stupid", "credits": "Niko Credits",
-        "open_folder": "Open Niko Folder", "gamemode": "Enable Niko GameMode (Linux)", "fsr": "Enable Niko FSR (Linux)"
+        "pad_mode": "Niko Pad Mode", "pad_mode_not_found": "Pad Mode niko script not found. Installing it in {path}, stupid", "credits": "Niko Credits",
+        "open_folder": "Open Niko Folder", "gamemode": "Enable Niko GameMode (Linux)", "fsr": "Enable Niko FSR (Linux)",
+        "downloading_backgrounds": "Downloading Niko Backgrounds...", "installing_corefonts": "Installing niko corefonts (winetricks corefonts)...", "installing_dxvk": "Installing niko dxvk (winetricks dxvk)..."
     }
 }
 
@@ -410,6 +435,30 @@ THEMES = {
         "button_hover_bg_color": "#FF4500",
         "label_text_color": "#FFFFFF",
         "border_color": "#B22222"
+    },
+    "yorkipoo-silver": {
+        "background_image": os.path.join(BACKGROUNDS_DIR, "ys.png"),
+        "button_bg_color": "#C0C0C0",
+        "button_text_color": "#000000",
+        "button_hover_bg_color": "#D3D3D3",
+        "label_text_color": "#000000",
+        "border_color": "#A9A9A9"
+    },
+    "yorkipoo-chocolate": {
+        "background_image": os.path.join(BACKGROUNDS_DIR, "yc.png"),
+        "button_bg_color": "#D2691E",
+        "button_text_color": "#FFFFFF",
+        "button_hover_bg_color": "#CD853F",
+        "label_text_color": "#FFFFFF",
+        "border_color": "#8B4513"
+    },
+    "yorkipoo-beige": {
+        "background_image": os.path.join(BACKGROUNDS_DIR, "yb.png"),
+        "button_bg_color": "#F5F5DC",
+        "button_text_color": "#000000",
+        "button_hover_bg_color": "#EEE8AA",
+        "label_text_color": "#000000",
+        "border_color": "#BDB76B"
     }
 }
 
@@ -441,6 +490,14 @@ def handle_first_run(config):
                 shutil.rmtree(data_dir)
             except Exception as e:
                 print(f"Failed to delete {data_dir}. Reason: {e}")
+        
+        backgrounds_dir = os.path.join(YANIX_PATH, "backgrounds")
+        if os.path.isdir(backgrounds_dir):
+            try:
+                 shutil.rmtree(backgrounds_dir)
+            except Exception as e:
+                print(f"Failed to delete {backgrounds_dir}. Reason: {e}")
+
         config["first_run"] = False
         save_config(config)
 
@@ -448,11 +505,13 @@ def load_custom_theme(filepath, lang_data):
     try:
         with open(filepath, 'r', encoding='utf-8') as f:
             theme_data = json.load(f)
-        required_keys = ["background_color_start", "background_color_end",
-                         "button_bg_color", "button_text_color",
+        
+        required_keys = ["button_bg_color", "button_text_color",
                          "button_hover_bg_color", "label_text_color", "border_color"]
+        
         if not all(key in theme_data for key in required_keys):
             raise ValueError("Invalid .yltheme file: missing required keys.")
+        
         return theme_data
     except (FileNotFoundError, json.JSONDecodeError, ValueError) as e:
         QMessageBox.critical(None, lang_data["theme_error_title"], lang_data["theme_load_error"].format(filepath=filepath, e=e))
@@ -523,63 +582,71 @@ class YanixSplashScreen(QSplashScreen):
         self.progress_text = progress
         self.repaint()
 
-class DataDownloader(QObject):
-    def __init__(self, current_lang_data, signals):
+class StartupWorker(QObject):
+    def __init__(self, current_lang_data, signals, config):
         super().__init__()
         self.current_lang_data = current_lang_data
         self.signals = signals
+        self.config = config
 
-    def run(self):
-        target_data_folder = os.path.join(YANIX_PATH, "data")
-
-        if os.path.exists(target_data_folder) and os.listdir(target_data_folder):
-            self.signals.download_complete.emit()
-            return
-
+    def download_and_extract(self, url, temp_path, target_folder, msg_download, msg_extract, msg_fail_dl, msg_fail_ext):
         if not check_internet_connection():
-            if os.path.exists(target_data_folder):
-                self.signals.download_complete.emit()
-                return
-            else:
-                self.signals.download_failed.emit(self.current_lang_data["no_internet"])
-                return
+             return
 
-        self.signals.update_splash.emit(self.current_lang_data["downloading_data"], "")
+        self.signals.update_splash.emit(msg_download, "")
         try:
             headers = {'User-Agent': USER_AGENT}
-            response = requests.get(DATA_DOWNLOAD_URL, stream=True, timeout=10, headers=headers)
+            response = requests.get(url, stream=True, timeout=10, headers=headers)
             response.raise_for_status()
 
             total_size = int(response.headers.get('content-length', 0))
             downloaded_size = 0
-            with open(TEMP_ZIP_PATH, 'wb') as f:
+            with open(temp_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     f.write(chunk)
                     downloaded_size += len(chunk)
                     self.signals.update_splash.emit(
-                        self.current_lang_data["downloading_data"],
+                        msg_download,
                         f"{downloaded_size / (1024 * 1024):.1f}MB / {total_size / (1024 * 1024):.1f}MB" if total_size > 0 else "..."
                     )
-
         except Exception as e:
-            self.signals.download_failed.emit(f"{self.current_lang_data['download_failed']} ({e}).")
-            if os.path.exists(TEMP_ZIP_PATH):
-                os.remove(TEMP_ZIP_PATH)
+            self.signals.download_failed.emit(f"{msg_fail_dl} ({e}).")
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
             return
 
-        self.signals.update_splash.emit(self.current_lang_data["extracting_data"], "")
+        self.signals.update_splash.emit(msg_extract, "")
         try:
-            os.makedirs(target_data_folder, exist_ok=True)
-            with zipfile.ZipFile(TEMP_ZIP_PATH, 'r') as zip_ref:
+            os.makedirs(target_folder, exist_ok=True)
+            with zipfile.ZipFile(temp_path, 'r') as zip_ref:
                 file_list = zip_ref.namelist()
                 total_files = len(file_list)
                 extracted_count = 0
 
                 for file in file_list:
-                    zip_ref.extract(file, target_data_folder)
+                    zip_ref.extract(file, target_folder)
                     extracted_count += 1
                     self.signals.extraction_progress.emit(extracted_count, total_files)
+        except Exception as e:
+            self.signals.extraction_failed.emit(f"{msg_fail_ext} ({e}).")
+            return
+        finally:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
 
+    def run(self):
+        target_data_folder = os.path.join(YANIX_PATH, "data")
+        if not (os.path.exists(target_data_folder) and os.listdir(target_data_folder)):
+            self.download_and_extract(
+                DATA_DOWNLOAD_URL, 
+                TEMP_ZIP_PATH, 
+                target_data_folder,
+                self.current_lang_data["downloading_data"],
+                self.current_lang_data["extracting_data"],
+                self.current_lang_data["download_failed"],
+                self.current_lang_data["extract_failed"]
+            )
+            
             extracted_items = os.listdir(target_data_folder)
             if len(extracted_items) == 1:
                 potential_subfolder = os.path.join(target_data_folder, extracted_items[0])
@@ -591,15 +658,32 @@ class DataDownloader(QObject):
                         shutil.move(source_item_path, destination_item_path)
                     os.rmdir(source_dir)
 
-            self.signals.extraction_complete.emit()
+        if not (os.path.exists(BACKGROUNDS_DIR) and os.listdir(BACKGROUNDS_DIR)):
+             self.download_and_extract(
+                BACKGROUNDS_DOWNLOAD_URL,
+                TEMP_BG_ZIP_PATH,
+                BACKGROUNDS_DIR,
+                self.current_lang_data.get("downloading_backgrounds", "Downloading Backgrounds..."),
+                self.current_lang_data["extracting_data"],
+                "Failed to download backgrounds.",
+                "Failed to extract backgrounds."
+            )
 
-        except Exception as e:
-            self.signals.extraction_failed.emit(f"{self.current_lang_data['extract_failed']} ({e}).")
-            shutil.rmtree(target_data_folder, ignore_errors=True)
-            return
-        finally:
-            if os.path.exists(TEMP_ZIP_PATH):
-                os.remove(TEMP_ZIP_PATH)
+        if self.config.get("first_run", False) and not IS_WINDOWS:
+            if shutil.which("winetricks"):
+                self.signals.update_splash.emit(self.current_lang_data.get("installing_corefonts", "Installing corefonts..."), "")
+                try:
+                    subprocess.run(["winetricks", "-q", "corefonts"], check=True)
+                except Exception as e:
+                    print(f"Failed to install corefonts: {e}")
+                
+                self.signals.update_splash.emit(self.current_lang_data.get("installing_dxvk", "Installing dxvk..."), "")
+                try:
+                    subprocess.run(["winetricks", "-q", "dxvk"], check=True)
+                except Exception as e:
+                    print(f"Failed to install dxvk: {e}")
+
+        self.signals.download_complete.emit()
 
 class UpdateChecker(QObject):
     def __init__(self, current_version, lang_data, signals):
@@ -1079,11 +1163,45 @@ class YanixLauncher(QMainWindow):
         self.blog_view.setStyleSheet(blog_view_style)
 
         palette = self.palette()
-        gradient = QLinearGradient(0, 0, 0, self.height())
-        gradient.setColorAt(0, QColor(theme["background_color_start"]))
-        gradient.setColorAt(1, QColor(theme["background_color_end"]))
-        palette.setBrush(QPalette.ColorRole.Window, QBrush(gradient))
+        if "background_image" in theme and os.path.exists(theme["background_image"]):
+            image = QImage(theme["background_image"])
+            if not image.isNull():
+                 palette.setBrush(QPalette.ColorRole.Window, QBrush(image.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)))
+            else:
+                 gradient = QLinearGradient(0, 0, 0, self.height())
+                 gradient.setColorAt(0, QColor(theme.get("background_color_start", "#000000")))
+                 gradient.setColorAt(1, QColor(theme.get("background_color_end", "#000000")))
+                 palette.setBrush(QPalette.ColorRole.Window, QBrush(gradient))
+        elif "background_base64" in theme:
+             try:
+                 img_data = base64.b64decode(theme["background_base64"])
+                 image = QImage.fromData(img_data)
+                 if not image.isNull():
+                     palette.setBrush(QPalette.ColorRole.Window, QBrush(image.scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatioByExpanding, Qt.TransformationMode.SmoothTransformation)))
+                 else:
+                     raise ValueError("Invalid image data")
+             except Exception:
+                 gradient = QLinearGradient(0, 0, 0, self.height())
+                 gradient.setColorAt(0, QColor(theme.get("background_color_start", "#000000")))
+                 gradient.setColorAt(1, QColor(theme.get("background_color_end", "#000000")))
+                 palette.setBrush(QPalette.ColorRole.Window, QBrush(gradient))
+        else:
+            gradient = QLinearGradient(0, 0, 0, self.height())
+            gradient.setColorAt(0, QColor(theme.get("background_color_start", "#000000")))
+            gradient.setColorAt(1, QColor(theme.get("background_color_end", "#000000")))
+            palette.setBrush(QPalette.ColorRole.Window, QBrush(gradient))
+            
         self.setPalette(palette)
+
+    def paintEvent(self, event):
+        theme = self.get_current_theme_data()
+        if "background_image" in theme or "background_base64" in theme:
+             self.apply_theme(self.config["theme"])
+        super().paintEvent(event)
+
+    def resizeEvent(self, event):
+        self.apply_theme(self.config["theme"])
+        super().resizeEvent(event)
 
     def _on_game_finished(self):
         self.is_game_running = False
@@ -1174,11 +1292,22 @@ class YanixLauncher(QMainWindow):
             self.update_rpc(details="In the launcher", state="Browsing...")
 
     def launch_pad_mode(self):
-        pad_mode_script_path = os.path.join(YANIX_PATH, "data", "padmode.py")
-        if os.path.exists(pad_mode_script_path):
+        if not os.path.exists(PADMODE_SCRIPT_PATH):
+             msg = self.lang["pad_mode_not_found"].format(path=PADMODE_SCRIPT_PATH)
+             QMessageBox.information(self, self.lang["info_title"], msg)
+             try:
+                 response = requests.get(PADMODE_DOWNLOAD_URL)
+                 response.raise_for_status()
+                 with open(PADMODE_SCRIPT_PATH, 'wb') as f:
+                     f.write(response.content)
+             except Exception as e:
+                 QMessageBox.critical(self, self.lang["error_title"], f"Failed to download Pad Mode: {e}")
+                 return
+
+        if os.path.exists(PADMODE_SCRIPT_PATH):
             try:
                 self.hide()
-                process = subprocess.Popen([sys.executable, pad_mode_script_path])
+                process = subprocess.Popen([sys.executable, PADMODE_SCRIPT_PATH])
                 monitor_thread = threading.Thread(
                     target=self._wait_for_pad_mode_exit,
                     args=(process,),
@@ -1188,8 +1317,6 @@ class YanixLauncher(QMainWindow):
             except Exception as e:
                 self.show()
                 QMessageBox.critical(self, self.lang["error_title"], f"Failed to launch Pad Mode: {e}")
-        else:
-            QMessageBox.warning(self, self.lang["info_title"], self.lang["pad_mode_not_found"])
 
     def select_exe(self):
         file, _ = QFileDialog.getOpenFileName(self, self.lang["select_exe_window_title"], "", self.lang["exe_file_filter"])
@@ -1332,7 +1459,6 @@ class YanixLauncher(QMainWindow):
                 with open(temp_file_path, 'r', encoding='utf-8') as f_new:
                     new_code = f_new.read()
                 
-                # Fix: Use sys.argv[0] instead of __file__ to update the correct executable script
                 current_script_path = os.path.abspath(sys.argv[0])
                 with open(current_script_path, 'w', encoding='utf-8') as f_old:
                     f_old.write(new_code)
@@ -1477,14 +1603,14 @@ if __name__ == "__main__":
     signals.extraction_progress.connect(lambda current, total: splash.update_splash_content(current_lang_data["extracting_data"], f"({current}/{total} files)"))
     signals.extraction_failed.connect(lambda msg: QMessageBox.critical(None, current_lang_data["extract_failed"], msg))
 
-    downloader_thread = threading.Thread(target=DataDownloader(current_lang_data, signals).run, daemon=True)
+    startup_thread = threading.Thread(target=StartupWorker(current_lang_data, signals, app_config).run, daemon=True)
 
     signals.download_complete.connect(lambda: splash.update_splash_content(current_lang_data["download_success"]))
     signals.extraction_complete.connect(lambda: splash.update_splash_content(current_lang_data["download_success"]))
 
-    downloader_thread.start()
+    startup_thread.start()
 
-    while downloader_thread.is_alive():
+    while startup_thread.is_alive():
         QApplication.processEvents()
         time.sleep(0.1)
 
