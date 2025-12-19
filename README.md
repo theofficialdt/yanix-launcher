@@ -24,7 +24,7 @@ Mac:
 - 12 GB RAM
 - 3 GB Free Disk Space
 - 4 GB VRAM/GTT
-
+- Asahi Linux
 Installation
 ------------
 
